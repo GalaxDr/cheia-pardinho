@@ -28,3 +28,7 @@ O servidor repassa só as duas consultas do guia da Defesa Civil (Tags_data e Hi
 ## Nível ao vivo
 
 Por padrão o mapa mostra a cheia a partir do nível medido nas estações de Sinimbu e Santa Cruz do Sul: subida = nível atual − menor nível dos últimos 30 dias, interpolada ao longo do rio entre as duas estações pelo tempo de percurso até a foz. Mexer no controle de nível passa para o modo manual.
+
+## Pluviômetros UNISC e CEMADEN
+
+`/api/pluviometros` junta os pluviômetros da UNISC (estacaobackend.unisc.br) e do CEMADEN (Mapa Interativo) que ficam perto da sub-bacia, com a chuva das últimas 24 h. São as mesmas fontes do projeto pluvio-audit; os endpoints não são documentados e podem mudar. A resposta fica em cache por 5 minutos e a página atualiza a cada 10 minutos. O mapa mostra só os que caem dentro da bacia: quadrado = UNISC, triângulo = CEMADEN.

@@ -9,7 +9,7 @@
 :root {
   --brand: #427a52; --brand-ink: #f0f0ec; --brand-soft: #c8dcc6;
   --bg: #427a52; --panel: #386a46; --ink: #f0f0ec; --muted: #c8dcc6; --line: #5b8c68;
-  --accent: #e9e9e9; --accent-ink: #1e3a26; --map-bg: #2c5538;
+  --accent: #e9e9e9; --accent-ink: #1e3a26; --map-bg: #2c5538; --pluv-u: #d4a8ff; --pluv-c: #7fe3d2;
   --water-lo: #8fd3ff; --water-hi: #1f6fd1; --river: #8fcbff; --drop: #9ad8ff; --drop-river: #e6f6ff;
   --shade-lo: #1f3a27; --shade-hi: #8ea993; --outline: #f0f0ec;
   --sel: #f5c260; --band: #ff9a5c; --iso-near: #eef6ea; --iso-far: #1e3a26;
@@ -30,6 +30,10 @@ body { background: var(--bg); color: var(--ink); font-family: var(--f-body); fon
 @media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
 h1 { font-family: var(--f-display); font-weight: 700; font-size: 2rem; line-height: 1.05; margin: 0; text-wrap: balance; }
 .sub { color: var(--muted); margin: 6px 0 0; font-size: 0.93rem; }
+.pluv-lista { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.pluv-lista li { display: flex; gap: 8px; align-items: baseline; }
+.pluv-lista .mm { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.pluv-lista .fonte { font-size: 11px; opacity: .75; }
 .panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; margin: 0; }
@@ -230,12 +234,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
         <label><input type="checkbox" id="chk-esc"> Enxurrada gerada pela chuva</label>
         <label><input type="checkbox" id="chk-iso"> Tempo até a foz</label>
         <label><input type="checkbox" id="chk-dc" checked> Estações da Defesa Civil</label>
+        <label><input type="checkbox" id="chk-pluv" checked> Pluviômetros UNISC e CEMADEN</label>
         <label><input type="checkbox" id="chk-coleta" checked> Pontos de coleta</label>
         <label><input type="checkbox" id="chk-trechos"> Trechos a revitalizar</label>
         <label><input type="checkbox" id="chk-uso"> Uso do solo</label>
         <label><input type="checkbox" id="chk-reg"> Regiões homogêneas</label>
         <label><input type="checkbox" id="chk-rios" checked> Drenagem</label>
       </div>
+      <p class="hint" id="pluv-status">Pluviômetros UNISC e CEMADEN: carregando…</p>
+      <ul class="pluv-lista" id="pluv-lista"></ul>
     </section>
 
     <section class="box note" aria-labelledby="h-como">
@@ -286,7 +293,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   const cv = $("map"), ctx = cv.getContext("2d"), gc = $("gotas"), gx = gc.getContext("2d");
   let meta, handA, handR, uso, canal, sombra, regiao, dentro, dir, accl, tt, down, head, nextUp, validos, hsg, app;
   let img, pal = {}, pendente = false;
-  const st = { nivelModo: "vivo", vivo: [], nivel: 0, ref: "rios", iso: false, uso: false, reg: false, rios: true, esc: false, coleta: true, dc: true, trechos: false,
+  const st = { nivelModo: "vivo", vivo: [], nivel: 0, ref: "rios", iso: false, uso: false, reg: false, rios: true, esc: false, coleta: true, dc: true, pluv: true, trechos: false,
     t: 0, chuva: 60, amc: 2, conserv: false, appOn: false, pasto: false, sel: null, selIdx: -1, selCells: null,
     gotasOn: !matchMedia("(prefers-reduced-motion: reduce)").matches, nGotas: 6000, gotasFull: false };
 
@@ -330,7 +337,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       down[i] = dd; nextUp[i] = head[dd]; head[dd] = i;
     }
     img = ctx.createImageData(W, H);
-    lerPaleta(); calcEscoamento(); desenharSvg(); legenda(); $("loading").hidden = true; agendar(); iniciarGotas(); dcAtualizar();
+    lerPaleta(); calcEscoamento(); desenharSvg(); legenda(); $("loading").hidden = true; agendar(); iniciarGotas(); dcAtualizar(); pluvAtualizar();
   }).catch(() => { $("loading").textContent = "Não foi possível carregar os dados do terreno."; });
 
   // ---------- Mapa base ----------
@@ -392,6 +399,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       s += `<circle cx="${e.x}" cy="${e.y}" r="${(sel ? r * 1.4 : r).toFixed(2)}" style="fill:${cor};stroke:${sel ? "var(--ink)" : "var(--map-bg)"}" stroke-width="${sel ? 3 : 2}" vector-effect="non-scaling-stroke"/>`;
       s += txt(e.x + 10 * u, e.y + 4 * u, esc(e.cidade) + (e.nivel != null ? " · " + fmt(e.nivel, 2) + " m" : e.h24 != null ? " · " + fmt(e.h24, 0) + " mm/24 h" : ""), 12, "var(--ink)");
     });
+    if (st.pluv) pluvEst.forEach((p) => {
+      const r = 5.5 * u, x = p.x, y = p.y, sem = p.h24 == null;
+      const est = `style="fill:${sem ? "var(--map-bg)" : p.fonte === "UNISC" ? "var(--pluv-u)" : "var(--pluv-c)"};stroke:${sem ? "var(--ink)" : "var(--map-bg)"}" stroke-width="2" vector-effect="non-scaling-stroke"`;
+      s += p.fonte === "UNISC" ? `<rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" ${est}/>`
+        : `<path d="M${x} ${y - r * 1.25}L${x + r * 1.15} ${y + r * 0.85}L${x - r * 1.15} ${y + r * 0.85}Z" ${est}/>`;
+      s += txt(x + 9 * u, y + 4 * u, sem ? "sem dado" : fmt(p.h24, 0) + " mm", 11, "var(--ink)");
+    });
     const f = meta.fluxo.foz, fx = f % W + 0.5, fy = (f / W | 0) + 0.5;
     s += txt(fx + 8 * u, fy - 6 * u, "Foz", 14, "var(--ink)");
     svg.innerHTML = s;
@@ -407,6 +421,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     if (st.iso) h += `<span>tempo até a foz: 0 h <span class="ramp sw" style="width:70px;background:linear-gradient(90deg,var(--iso-near),var(--iso-far))"></span> ${fmt(meta.fluxo.t_max_h, 0)} h</span>`;
     if (st.esc) h += `<span>enxurrada: pouca <span class="ramp sw" style="width:60px;background:linear-gradient(90deg,var(--shade-lo),var(--drop))"></span> toda a chuva</span>`;
     if (st.dc && dcEst.length) h += `<span><span class="sw" style="background:#69a82f;border-radius:50%"></span><span class="sw" style="background:#faba00;border-radius:50%"></span><span class="sw" style="background:#e67819;border-radius:50%"></span><span class="sw" style="background:#e20228;border-radius:50%"></span>rio: normal → inundação</span><span><span class="sw" style="background:var(--drop);border-radius:50%"></span>pluviômetro (chuva 24 h)</span>`;
+    if (st.pluv && pluvEst.length) h += `<span><span class="sw" style="background:var(--pluv-u)"></span>UNISC</span><span><span class="sw" style="background:var(--pluv-c);clip-path:polygon(50% 0,100% 100%,0 100%)"></span>CEMADEN (chuva em 24 h)</span>`;
     if (st.coleta && meta.pontos) h += `<span><span class="sw" style="background:var(--accent);border-radius:50%"></span>pontos de coleta</span>`;
     if (st.trechos && meta.pontos) h += `<span><span class="sw" style="background:var(--band);transform:rotate(45deg)"></span>trechos a revitalizar</span>`;
     if (st.nivel > 0 || (st.nivelModo === "vivo" && st.vivo.some((v) => v.r10 > 0))) h += `<span>profundidade <span class="ramp sw" style="width:60px;background:linear-gradient(90deg,var(--water-lo),var(--water-hi))"></span> ≥ 5 m</span>`;
@@ -651,7 +666,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   $("modo-manual").addEventListener("click", () => setModoNivel("manual"));
   function setRef(r) { st.ref = r; $("ref-rios").setAttribute("aria-pressed", r === "rios"); $("ref-arroios").setAttribute("aria-pressed", r === "arroios"); agendar(); }
   $("ref-rios").addEventListener("click", () => setRef("rios")); $("ref-arroios").addEventListener("click", () => setRef("arroios"));
-  [["chk-dc", "dc"], ["chk-coleta", "coleta"], ["chk-trechos", "trechos"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; if (meta) { desenharSvg(); legenda(); } }));
+  [["chk-dc", "dc"], ["chk-pluv", "pluv"], ["chk-coleta", "coleta"], ["chk-trechos", "trechos"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; if (meta) { desenharSvg(); legenda(); } }));
   [["chk-esc", "esc"], ["chk-iso", "iso"], ["chk-uso", "uso"], ["chk-rios", "rios"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; legenda(); agendar(); }));
   $("chk-reg").addEventListener("change", (e) => { st.reg = e.target.checked; if (meta) desenharSvg(); });
 
@@ -715,6 +730,36 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   $("z-reset").addEventListener("click", () => { zs = 1; zx = 0; zy = 0; aplicarZoom(); });
   window.addEventListener("resize", aplicarZoom);
   aplicarZoom();
+
+  // ---------- Pluviômetros UNISC e CEMADEN (via servidor do site) ----------
+  const PLUV_URL = null;
+  let pluvEst = [], pluvTimer = 0;
+  async function pluvAtualizar() {
+    clearTimeout(pluvTimer);
+    const stt = $("pluv-status"), ul = $("pluv-lista");
+    if (!PLUV_URL) { stt.textContent = "Pluviômetros UNISC e CEMADEN: aparecem no site publicado (Easypanel), que busca esses dados pelo servidor."; return; }
+    try {
+      const r = await fetch(PLUV_URL); if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const todos = [...(d.unisc || []).map((e) => ({ fonte: "UNISC", nome: e.nome, lat: e.lat, lon: e.lon, h24: e.h24, ts: e.ts })),
+                     ...(d.cemaden || []).map((e) => ({ fonte: "CEMADEN", nome: e.nome + (e.cidade ? " (" + e.cidade + ")" : ""), lat: e.lat, lon: e.lon, h24: e.h24, ts: e.ts, horas: e.horas }))];
+      pluvEst = todos.map((p) => { const [x, y] = lonlatPx(p.lon, p.lat); return { ...p, x, y }; })
+        .filter((p) => p.x >= 0 && p.y >= 0 && p.x < W && p.y < H && dentro[Math.round(p.y) * W + Math.round(p.x)])
+        .sort((a, b) => a.y - b.y);
+      const nU = pluvEst.filter((p) => p.fonte === "UNISC").length, nC = pluvEst.length - nU;
+      stt.textContent = pluvEst.length ? `Chuva nas últimas 24 h · UNISC: ${nU} · CEMADEN: ${nC} pluviômetros dentro da bacia · atualiza a cada 10 min.` + (d.erros && d.erros.length ? " Falhou: " + d.erros.join("; ") : "")
+        : "Nenhum pluviômetro UNISC ou CEMADEN dentro da bacia na resposta." + (d.erros && d.erros.length ? " " + d.erros.join("; ") : "");
+      ul.replaceChildren(...pluvEst.map((p) => {
+        const li = document.createElement("li"), a = document.createElement("span"), f = document.createElement("span"), v = document.createElement("span");
+        a.textContent = p.nome; f.className = "fonte"; f.textContent = p.fonte; v.className = "mm";
+        v.textContent = p.h24 == null ? "sem dado" : fmt(p.h24, 1) + " mm";
+        if (p.ts) v.title = "última leitura " + new Date(p.ts).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        li.append(a, f, v); return li;
+      }));
+    } catch (err) { stt.textContent = "Pluviômetros UNISC e CEMADEN: não consegui carregar (" + err.message + "). Tento de novo em 10 min."; }
+    desenharSvg(); legenda();
+    pluvTimer = setTimeout(pluvAtualizar, 10 * 60 * 1000);
+  }
 
   // ---------- Defesa Civil RS: Sinimbu e Santa Cruz do Sul ----------
   const DC_URL = "https://redehidrometeorologica.defesacivil.rs.gov.br/graphql";

@@ -12,5 +12,8 @@ head = ('\n<link rel="icon" href="favicon.ico" sizes="any">\n<link rel="apple-to
         '<style>body{margin:0}[hidden]{display:none!important}</style>\n')
 doc = ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
        + h[:te] + head + h[te:].replace("</style>\n", "</style>\n</head>\n<body>\n", 1) + "\n</body>\n</html>\n")
+old2 = 'const PLUV_URL = null;'
+assert old2 in doc
+doc = doc.replace(old2, 'const PLUV_URL = /^https?:$/.test(location.protocol) && !/claude\\.ai|claudeusercontent/.test(location.hostname) ? "api/pluviometros" : null;')
 open(pub + "/index.html", "w", encoding="utf-8").write(doc)
 print("ok")
