@@ -15,5 +15,11 @@ doc = ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n<m
 old2 = 'const PLUV_URL = null;'
 assert old2 in doc
 doc = doc.replace(old2, 'const PLUV_URL = /^https?:$/.test(location.protocol) && !/claude\\.ai|claudeusercontent/.test(location.hostname) ? "api/pluviometros" : null;')
+# versao de cada arquivo de dados no endereco (?v=hash): o navegador baixa de novo quando o arquivo muda
+import hashlib
+for f in ["dados.png", "base.png", "fluxo.png", "solo.png", "meta.json", "logo_muda.png"]:
+    v = hashlib.sha1(open(f"{pub}/{f}", "rb").read()).hexdigest()[:10]
+    n = doc.count(f'"{f}"'); assert n >= 1, f
+    doc = doc.replace(f'"{f}"', f'"{f}?v={v}"')
 open(pub + "/index.html", "w", encoding="utf-8").write(doc)
 print("ok")

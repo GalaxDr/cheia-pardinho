@@ -129,7 +129,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 <div class="wrap">
   <div class="panel">
     <header class="marca">
-      <img src="logo_muda.png" alt="MUDA UNISC – Programa de Conservação do Solo e da Água" width="640" height="130">
+      <img src="logo_muda.png?v=f12ea6ad1c" alt="MUDA UNISC – Programa de Conservação do Solo e da Água" width="640" height="130">
       <div>
         <h1>Cheia do Pardinho</h1>
         <p class="sub">Dinâmica da água na sub-bacia Alto-Médio Pardinho (G090_08) · 1.085 km² · foz ao sul</p>
@@ -321,7 +321,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     return new Promise((ok, erro) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0); ok(x.getImageData(0, 0, im.width, im.height).data); }; im.onerror = erro; im.src = src; });
   }
 
-  Promise.all([carregar("dados.png"), carregar("base.png"), carregar("fluxo.png"), carregar("solo.png"), fetch("meta.json").then((r) => r.json())]).then(([d, b, f, so, m]) => {
+  Promise.all([carregar("dados.png?v=a708c5e72c"), carregar("base.png?v=1ba96aa9d7"), carregar("fluxo.png?v=9b2d0b3344"), carregar("solo.png?v=1a3ed8eed0"), fetch("meta.json?v=f7c0bc054a").then((r) => r.json())]).then(([d, b, f, so, m]) => {
     meta = m;
     handA = new Uint8Array(N); handR = new Uint8Array(N); uso = new Uint8Array(N); canal = new Uint8Array(N); hsg = new Uint8Array(N); app = new Uint8Array(N);
     sombra = new Uint8Array(N); regiao = new Uint8Array(N); dentro = new Uint8Array(N); dir = new Uint8Array(N); accl = new Uint8Array(N); tt = new Uint8Array(N);
