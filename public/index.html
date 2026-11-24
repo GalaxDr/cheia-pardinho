@@ -134,13 +134,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
     <section class="box" aria-labelledby="h-mov">
       <h2 id="h-mov">Água em movimento</h2>
-      <p class="hint">Cada ponto azul é uma gota de chuva. Ela desce pela encosta mais íngreme, entra nos arroios, depois nos rios, e sai pela foz no sul da bacia.</p>
+      <p class="hint">Os pontos azuis mostram a água correndo nos rios principais até a foz, no sul da bacia. Para ver a chuva descendo pelas encostas, use "Chegada da chuva na foz".</p>
       <div class="row">
         <button class="btn primary" id="play-gotas">Pausar</button>
-        <label for="n-gotas" class="label" style="margin-left:auto">Quantidade de chuva</label>
+        <label for="n-gotas" class="label" style="margin-left:auto">Quantidade de água</label>
       </div>
-      <input type="range" id="n-gotas" min="1000" max="16000" step="500" value="6000" aria-label="Quantidade de gotas">
-      <div class="ticks"><span>garoa</span><span>chuva forte</span></div>
+      <input type="range" id="n-gotas" min="500" max="8000" step="250" value="2500" aria-label="Quantidade de gotas">
+      <div class="ticks"><span>pouca</span><span>muita</span></div>
     </section>
 
     <section class="box" aria-labelledby="h-dc">
@@ -300,7 +300,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   let img, pal = {}, pendente = false;
   const st = { nivelModo: "vivo", vivo: [], nivel: 0, ref: "rios", iso: false, uso: false, reg: false, rios: true, esc: false, coleta: true, dc: true, trechos: false,
     t: 0, chuva: 60, amc: 2, conserv: false, appOn: false, pasto: false, sel: null, selIdx: -1, selCells: null,
-    gotasOn: !matchMedia("(prefers-reduced-motion: reduce)").matches, nGotas: 6000 };
+    gotasOn: !matchMedia("(prefers-reduced-motion: reduce)").matches, nGotas: 2500 };
 
   function hex(c) { c = c.trim(); const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
   function lerPaleta() {
@@ -427,7 +427,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
   // ---------- Gotas (partículas) ----------
   let P = null, rafG = 0;
-  function novaGota(k) { P.idx[k] = validos[(Math.random() * validos.length) | 0]; P.prog[k] = Math.random(); P.vida[k] = 0; }
+  let noRio = null;   // gotas continuas so nos rios principais
+  function novaGota(k) { if (!noRio) { noRio = validos.filter((i) => accl[i] >= LOG_RIO); if (!noRio.length) noRio = validos; } P.idx[k] = noRio[(Math.random() * noRio.length) | 0]; P.prog[k] = Math.random(); P.vida[k] = 0; }
   function ajustarGotas(n) {
     const old = P; P = { n, idx: new Int32Array(n), prog: new Float32Array(n), vida: new Uint16Array(n) };
     for (let k = 0; k < n; k++) { if (old && k < old.n) { P.idx[k] = old.idx[k]; P.prog[k] = old.prog[k]; P.vida[k] = old.vida[k]; } else novaGota(k); }
@@ -436,7 +437,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   // Pulso de chuva: todas as gotas caem em t = 0 e descem com as velocidades do modelo (celulas de 30 m por hora)
   let pulso = null;
   function iniciarPulso() {
-    const n = st.nGotas; pulso = { n, idx: new Int32Array(n), prog: new Float32Array(n), vivo: new Uint8Array(n).fill(1), t: 0 };
+    const n = Math.round(st.nGotas * 2.4); pulso = { n, idx: new Int32Array(n), prog: new Float32Array(n), vivo: new Uint8Array(n).fill(1), t: 0 };
     for (let k = 0; k < n; k++) pulso.idx[k] = validos[(Math.random() * validos.length) | 0];
   }
   function avancarPulso(dh) {
@@ -624,7 +625,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   // fim da animacao: volta a mostrar a chuva continua (o grafico continua marcando o fim)
   function encerrarPulso() { pulso = null; limparGotas(); cancelAnimationFrame(rafG); if (st.gotasOn) rafG = requestAnimationFrame(passoGotas); legenda(); }
   $("chk-banda").addEventListener("change", (e) => { st.banda = e.target.checked; legenda(); agendar(); });
-  function tocar(ts) { if (!tocando) return; if (tUlt) setT(st.t + (ts - tUlt) / 1000 * 1.6); tUlt = ts; if (st.t >= 24) { tocando = false; $("play-t").textContent = "Repetir"; encerrarPulso(); return; } rafT = requestAnimationFrame(tocar); }
+  function tocar(ts) { if (!tocando) return; if (tUlt) setT(st.t + (ts - tUlt) / 1000 * 0.6); tUlt = ts; if (st.t >= 24) { tocando = false; $("play-t").textContent = "Repetir"; encerrarPulso(); return; } rafT = requestAnimationFrame(tocar); }
   $("play-t").addEventListener("click", () => {
     if (tocando) { tocando = false; $("play-t").textContent = "Continuar"; return; }
     if (st.t >= 24 || st.t === 0) { setT(0); setT(0.01); }
