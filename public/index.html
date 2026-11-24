@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cheia do Pardinho</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#427a52">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: painel de controles à esquerda (água em movimento, caminho da água, chegada da chuva, nível de cheia); mapa alto da sub-bacia à direita, com partículas animadas. */
+/* Paleta MUDA: verde #427a52, verde-escuro #1e3a26, sálvia #a9c9a7, gelo #e9e9e9. A água continua azul para ser lida como água. */
+/* Visual único do MUDA (não muda com o tema do sistema): fundo verde da marca, painéis em verde mais fechado, texto gelo e destaques em sálvia. */
+:root {
+  --brand: #427a52; --brand-ink: #f0f0ec; --brand-soft: #c8dcc6;
+  --bg: #427a52; --panel: #386a46; --ink: #f0f0ec; --muted: #c8dcc6; --line: #5b8c68;
+  --accent: #e9e9e9; --accent-ink: #1e3a26; --map-bg: #2c5538;
+  --water-lo: #8fd3ff; --water-hi: #1f6fd1; --river: #8fcbff; --drop: #9ad8ff; --drop-river: #e6f6ff;
+  --shade-lo: #1f3a27; --shade-hi: #8ea993; --outline: #f0f0ec;
+  --sel: #f5c260; --band: #ff9a5c; --iso-near: #eef6ea; --iso-far: #1e3a26;
+  color-scheme: dark;
+  --f-display: "Nunito", "Trebuchet MS", Arial, sans-serif;
+  --f-body: "Nunito Sans", "Segoe UI", Arial, sans-serif;
+  --f-data: "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+.marca { background: transparent; color: var(--brand-ink); padding: 4px 2px 2px; display: flex; flex-direction: column; gap: 14px; }
+.marca img { width: 100%; max-width: 340px; height: auto; display: block; }
+.marca h1 { color: var(--brand-ink); }
+.marca .sub { color: var(--brand-soft); }
+.marca .btn { color: var(--brand-ink); border-color: rgba(233,233,233,0.45); }
+.marca .btn:hover { border-color: var(--brand-ink); }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 2rem; line-height: 1.05; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; font-size: 0.93rem; }
+.panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; margin: 0; }
+.label { font-family: var(--f-display); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+.hint { color: var(--muted); font-size: 0.86rem; margin: 0; max-width: 60ch; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.big { font-family: var(--f-display); font-weight: 700; font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
+.unit { color: var(--muted); }
+input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
+.ticks { display: flex; justify-content: space-between; font-family: var(--f-data); font-size: 0.72rem; color: var(--muted); }
+button.btn { font: 600 0.88rem var(--f-body); padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+button.btn:hover { border-color: var(--accent); }
+button.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 600 0.84rem var(--f-body); padding: 8px; border: 0; background: transparent; color: var(--ink); cursor: pointer; line-height: 1.2; }
+.seg button small { display: block; font-weight: 400; color: var(--muted); font-size: 0.74rem; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.seg button[aria-pressed="true"] small { color: var(--accent-ink); opacity: 0.85; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.checks label { display: flex; gap: 6px; align-items: center; cursor: pointer; font-size: 0.92rem; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.kpi b { display: block; font-family: var(--f-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kpi span { font-size: 0.8rem; color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.bar { display: grid; grid-template-columns: 112px minmax(0, 1fr) 46px; gap: 8px; align-items: center; font-size: 0.85rem; }
+.bar .track { height: 9px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.bar .fill { display: block; height: 100%; border-radius: 5px; }
+.bar .v { font-family: var(--f-data); font-size: 0.76rem; text-align: right; font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0,0,0,0.15); }
+.empty { color: var(--muted); font-size: 0.88rem; border: 1px dashed var(--line); border-radius: 8px; padding: 12px; }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--f-data); font-size: 10px; fill: var(--muted); }
+.mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini label { font-size: 0.8rem; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.mini output { font-family: var(--f-data); color: var(--ink); font-size: 0.85rem; }
+.mapcol { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 860px) { .mapcol { position: static; } }
+.maptools { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.maptools .grp { display: flex; align-items: center; gap: 6px; }
+.maptools button { min-width: 34px; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 700 0.95rem var(--f-display); cursor: pointer; }
+.maptools button:hover { border-color: var(--accent); }
+.mapbox { position: relative; background: var(--map-bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; justify-content: center; }
+.stage { position: relative; width: 100%; height: min(84vh, 1100px); overflow: hidden; touch-action: pan-y; border-radius: 6px; cursor: crosshair; }
+@media (max-width: 860px) { .stage { height: auto; aspect-ratio: 1061 / 2384; } }
+.stage.zoomed { touch-action: none; }
+.stage.dragging { cursor: grabbing; }
+.zoomwrap { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.zoomwrap canvas, .zoomwrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.zoomwrap svg { pointer-events: none; }
+#gotas, #ovl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#ovl path, #ovl polyline { vector-effect: non-scaling-stroke; }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); }
+.ramp { width: 90px; height: 10px; border-radius: 3px; }
+.probe { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 2; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; min-width: 180px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+.probe .t { font-family: var(--f-data); font-size: 0.76rem; }
+.note { font-size: 0.84rem; color: var(--muted); }
+.note p { margin: 0 0 6px; max-width: 65ch; }
+.note b { color: var(--ink); }
+.dc-status { font-size: 0.84rem; color: var(--muted); }
+.dc-status.erro { color: var(--sel); }
+.dc-cards { display: flex; flex-direction: column; gap: 10px; }
+.dc-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.dc-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.dc-nome { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+.dc-sub { font-size: 0.76rem; color: var(--muted); }
+.dc-chip { font: 700 0.74rem var(--f-body); padding: 3px 9px; border-radius: 999px; color: #1b1b1b; white-space: nowrap; }
+.dc-nivel { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dc-nivel b { font-family: var(--f-display); font-size: 2.3rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.dc-nivel span { color: var(--muted); font-size: 0.86rem; }
+.dc-chuva { font-family: var(--f-data); font-size: 0.78rem; color: var(--muted); }
+.dc-est { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.dc-est:hover, .dc-est[aria-pressed="true"] { border-color: var(--accent); }
+.dc-est .nm { font-weight: 700; font-size: 0.88rem; line-height: 1.2; }
+.dc-est .sb { font-size: 0.76rem; color: var(--muted); }
+.dc-est .vl { font-family: var(--f-data); font-size: 0.78rem; text-align: right; white-space: nowrap; }
+.dc-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--map-bg); }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="panel">
+    <header class="marca">
+      <img src="logo_muda.png" alt="MUDA UNISC – Programa de Conservação do Solo e da Água" width="640" height="130">
+      <div>
+        <h1>Cheia do Pardinho</h1>
+        <p class="sub">Dinâmica da água na sub-bacia Alto-Médio Pardinho (G090_08) · 1.085 km² · foz ao sul</p>
+      </div>
+    </header>
+
+    <section class="box" aria-labelledby="h-mov">
+      <h2 id="h-mov">Água em movimento</h2>
+      <p class="hint">Cada ponto azul é uma gota de chuva. Ela desce pela encosta mais íngreme, entra nos arroios, depois nos rios, e sai pela foz no sul da bacia.</p>
+      <div class="row">
+        <button class="btn primary" id="play-gotas">Pausar</button>
+        <label for="n-gotas" class="label" style="margin-left:auto">Quantidade de chuva</label>
+      </div>
+      <input type="range" id="n-gotas" min="1000" max="16000" step="500" value="6000" aria-label="Quantidade de gotas">
+      <div class="ticks"><span>garoa</span><span>chuva forte</span></div>
+    </section>
+
+    <section class="box" aria-labelledby="h-dc">
+      <h2 id="h-dc">Rio agora</h2>
+      <p class="hint">Nível do rio e chuva nas estações da Defesa Civil RS em Sinimbu e em Santa Cruz do Sul. Atualiza sozinho a cada 5 minutos.</p>
+      <div class="dc-status" id="dc-status">Conectando à Rede Hidrometeorológica…</div>
+      <div id="dc-cards" class="dc-cards"></div>
+      <div class="row" id="dc-acoes" hidden>
+        <button class="btn" id="dc-usar">Usar a chuva das últimas 24 h no simulador</button>
+      </div>
+      <p class="hint" id="dc-nota" hidden style="font-size:0.78rem"></p>
+      <p class="hint" style="font-size:0.76rem">Fonte: Rede Hidrometeorológica da Defesa Civil RS (Casa Militar), dados fornecidos pela MKS. Valores com * vêm de sensor ainda não homologado.</p>
+    </section>
+
+    <section class="box" aria-labelledby="h-cam">
+      <h2 id="h-cam">Siga a água</h2>
+      <p class="hint">Clique (ou toque) perto de um arroio ou rio. O ponto se encaixa no curso d'água mais próximo; em amarelo aparece toda a área que escoa para ele, e a linha mostra o caminho da água até a foz.</p>
+      <div id="sel-vazio" class="empty">Nenhum ponto escolhido. Experimente clicar num arroio no norte da bacia.</div>
+      <div id="sel-info" hidden>
+        <div class="kpis">
+          <div class="kpi"><b id="s-area">–</b><span>km² escoam para este ponto</span></div>
+          <div class="kpi"><b id="s-dist">–</b><span>km até a foz</span></div>
+          <div class="kpi"><b id="s-tempo">–</b><span>horas até a foz (estimativa)</span></div>
+          <div class="kpi"><b id="s-perc">–</b><span>da sub-bacia passa por aqui</span></div>
+          <div class="kpi"><b id="s-pico">–</b><span>vazão de pico aqui (m³/s) com a chuva escolhida</span></div>
+          <div class="kpi"><b id="s-contrib">–</b><span>do pico de vazão na foz vem desta área</span></div>
+        </div>
+        <div class="label" style="margin-top:12px">De onde vem essa água</div>
+        <div class="bars" id="s-uso"></div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="limpar">Limpar seleção</button></div>
+      </div>
+    </section>
+
+    <section class="box" aria-labelledby="h-tempo">
+      <h2 id="h-tempo">Chegada da chuva na foz</h2>
+      <p class="hint">Uma chuva de 1 hora cai sobre toda a bacia. Ao iniciar, as gotas mostram essa chuva descendo pelas encostas e pelos rios até a foz, e o gráfico acompanha a vazão que passa na foz. Parte da chuva infiltra e parte escorre, conforme o solo e o uso de cada lugar.</p>
+      <div class="row">
+        <button class="btn primary" id="play-t">Iniciar</button>
+        <span class="big" id="out-t">0</span><span class="unit">horas após a chuva</span>
+      </div>
+      <input type="range" id="tempo" min="0" max="24" step="0.1" value="0" aria-label="Horas após a chuva">
+      <label class="hint" style="display:flex;gap:6px;align-items:flex-start"><input type="checkbox" id="chk-banda"> Mostrar em laranja de onde vem a água que está passando na foz em cada momento (sobe da foz para a cabeceira, porque a água de longe demora mais para chegar)</label>
+      <svg class="chart" id="hidro" viewBox="0 0 360 150" role="img" aria-label="Hidrograma na foz"></svg>
+      <label for="chuva" class="label">Chuva em 1 hora: <output id="out-chuva">60 mm</output></label>
+      <input type="range" id="chuva" min="10" max="150" step="5" value="60">
+      <div class="label">Solo antes da chuva</div>
+      <div class="seg" role="group" aria-label="Umidade do solo antes da chuva" style="grid-template-columns:1fr 1fr 1fr">
+        <button id="amc-1" aria-pressed="false">Seco</button>
+        <button id="amc-2" aria-pressed="true">Normal</button>
+        <button id="amc-3" aria-pressed="false">Encharcado</button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b id="k-pico">–</b><span>vazão de pico na foz (m³/s)</span></div>
+        <div class="kpi"><b id="k-tpico">–</b><span>horas até o pico</span></div>
+        <div class="kpi"><b id="k-esc">–</b><span>da chuva vira enxurrada (média da bacia)</span></div>
+        <div class="kpi"><b id="k-vol">–</b><span>milhões de m³ escoados</span></div>
+      </div>
+      <div class="label">Quem mais contribui para o pico na foz</div>
+      <div class="bars" id="contrib-reg"></div>
+    </section>
+
+    <section class="box" aria-labelledby="h-cen">
+      <h2 id="h-cen">Cenários de conservação</h2>
+      <p class="hint">Mude o manejo e veja na hora quanto o pico da cheia na foz diminui.</p>
+      <div class="checks" style="flex-direction:column">
+        <label><input type="checkbox" id="cen-conserv"> Práticas conservacionistas nas lavouras e no mosaico de usos (plantio em nível, terraços, palhada)</label>
+        <label><input type="checkbox" id="cen-app"> Mata ciliar de 30 m ao longo dos arroios e rios</label>
+        <label><input type="checkbox" id="cen-pasto"> Pastagens bem manejadas (cobertura boa em vez de regular)</label>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b id="c-pico">–</b><span>pico na foz no cenário (m³/s)</span></div>
+        <div class="kpi"><b id="c-dif">–</b><span>em relação ao manejo atual</span></div>
+      </div>
+    </section>
+
+    <section class="box" aria-labelledby="h-cheia">
+      <h2 id="h-cheia">Nível de cheia</h2>
+      <div class="seg" role="group" aria-label="Origem do nível de cheia">
+        <button id="modo-vivo" aria-pressed="true">Ao vivo<small>nível medido pela Defesa Civil</small></button>
+        <button id="modo-manual" aria-pressed="false">Manual<small>escolha um nível</small></button>
+      </div>
+      <div class="row"><span class="big" id="out-nivel">0,0</span><span class="unit" id="un-nivel">m acima do nível normal do rio</span></div>
+      <p class="hint" id="vivo-info">Aguardando os dados das estações…</p>
+      <input type="range" id="nivel" min="0" max="20" step="0.1" value="0" aria-label="Nível da água acima do leito">
+      <div class="ticks"><span>0</span><span>5</span><span>10</span><span>15</span><span>20 m</span></div>
+      <div class="seg" role="group" aria-label="A água sobe a partir de">
+        <button id="ref-rios" aria-pressed="true">Rios principais<small>área drenada ≥ 50 km²</small></button>
+        <button id="ref-arroios" aria-pressed="false">Todos os arroios<small>área drenada ≥ 1 km²</small></button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b id="k-area">0,0</b><span>km² alagados</span></div>
+        <div class="kpi"><b id="k-perc">0,0%</b><span>da sub-bacia</span></div>
+      </div>
+    </section>
+
+    <section class="box" aria-labelledby="h-cam2">
+      <div class="label" id="h-cam2">Camadas</div>
+      <div class="checks">
+        <label><input type="checkbox" id="chk-esc"> Enxurrada gerada pela chuva</label>
+        <label><input type="checkbox" id="chk-iso"> Tempo até a foz</label>
+        <label><input type="checkbox" id="chk-dc" checked> Estações da Defesa Civil</label>
+        <label><input type="checkbox" id="chk-coleta" checked> Pontos de coleta</label>
+        <label><input type="checkbox" id="chk-trechos"> Trechos a revitalizar</label>
+        <label><input type="checkbox" id="chk-uso"> Uso do solo</label>
+        <label><input type="checkbox" id="chk-reg"> Regiões homogêneas</label>
+        <label><input type="checkbox" id="chk-rios" checked> Drenagem</label>
+      </div>
+    </section>
+
+    <section class="box note" aria-labelledby="h-como">
+      <div class="label" id="h-como">Como funciona</div>
+      <p>O caminho da água vem do <b>modelo de terreno de 30 m</b>: cada ponto escoa para o vizinho mais baixo, e somando esses caminhos aparecem os arroios e rios. É o mesmo cálculo usado em QGIS para delimitar bacias.</p>
+      <p>O tempo até a foz usa velocidades típicas: <b>0,3 m/s</b> escorrendo pela encosta, <b>1,0 m/s</b> nos arroios e <b>1,5 m/s</b> nos rios principais. A vazão é calculada pelo método tempo-área, sem o amortecimento da cheia ao longo do rio.</p>
+      <p>Quanto da chuva vira enxurrada sai do método <b>SCS Curva-Número</b>: cada ponto recebe um número conforme o uso do solo (MapBiomas 2025) e o grupo hidrológico do solo (mapa de solos 1:250.000, classificado conforme Sartori, Lombardi Neto e Genovez, 2005). Floresta em solo profundo retém muito; lavoura em Neossolo raso escoa muito. O mapa de solos é grosseiro para uma propriedade; ensaios de infiltração em campo melhoram bastante a estimativa local.</p>
+      <p>Os números servem para <b>comparar lugares e cenários</b> e entender a dinâmica. Para valores absolutos de vazão é preciso calibrar com medições de chuva e vazão.</p>
+      <p>O nível de cheia marca como alagado todo ponto cuja altura acima do rio mais próximo é menor que o nível escolhido. O terreno tem precisão vertical de alguns metros, então os primeiros 1 a 2 m mostram as partes mais baixas da várzea.</p>
+    </section>
+  </div>
+
+  <div class="mapcol">
+    <div class="maptools">
+      <div class="legend" id="legenda"></div>
+      <div class="grp" role="group" aria-label="Zoom do mapa">
+        <button id="z-out" aria-label="Afastar">−</button>
+        <button id="z-in" aria-label="Aproximar">+</button>
+        <button id="z-reset">Bacia inteira</button>
+      </div>
+    </div>
+    <div class="mapbox">
+      <div class="stage" id="stage">
+        <div class="zoomwrap" id="zw">
+          <canvas id="map" width="1061" height="2384" aria-label="Mapa da sub-bacia"></canvas>
+        </div>
+        <canvas id="gotas" aria-hidden="true"></canvas>
+        <svg id="ovl" viewBox="0 0 1061 2384" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="loading" id="loading">Carregando o terreno…</div>
+        <div class="probe" id="probe" hidden></div>
+      </div>
+    </div>
+    <p class="hint">Roda do mouse ou pinça para dar zoom, arraste para mover, clique num ponto para seguir a água.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const USO = [null,
+    { nome: "Floresta", cor: "#1f8d49" }, { nome: "Silvicultura", cor: "#7a6c00" }, { nome: "Campo", cor: "#d6bc74" },
+    { nome: "Pastagem", cor: "#edde8e" }, { nome: "Mosaico de usos", cor: "#ffefc3" }, { nome: "Lavoura", cor: "#f54ca9" },
+    { nome: "Área urbana", cor: "#d4271e" }, { nome: "Água", cor: "#2532e4" }];
+  const W = 1061, H = 2384, N = W * H, PX_KM2 = 0.0009;
+  const DR = [0, -1, -1, 0, 1, 1, 1, 0, -1], DC = [0, 0, 1, 1, 1, 0, -1, -1, -1];
+  const LOG_ARROIO = 40 * Math.log10(1111), LOG_RIO = 40 * Math.log10(55556);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, d) => v.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const cv = $("map"), ctx = cv.getContext("2d"), gc = $("gotas"), gx = gc.getContext("2d");
+  let meta, handA, handR, uso, canal, sombra, regiao, dentro, dir, accl, tt, down, head, nextUp, validos, hsg, app;
+  let img, pal = {}, pendente = false;
+  const st = { nivelModo: "vivo", vivo: [], nivel: 0, ref: "rios", iso: false, uso: false, reg: false, rios: true, esc: false, coleta: true, dc: true, trechos: false,
+    t: 0, chuva: 60, amc: 2, conserv: false, appOn: false, pasto: false, sel: null, selIdx: -1, selCells: null,
+    gotasOn: !matchMedia("(prefers-reduced-motion: reduce)").matches, nGotas: 6000 };
+
+  function hex(c) { c = c.trim(); const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function lerPaleta() {
+    const s = getComputedStyle(document.documentElement);
+    ["--water-lo", "--water-hi", "--river", "--shade-lo", "--shade-hi", "--sel", "--band", "--iso-near", "--iso-far", "--drop", "--drop-river"].forEach((k) => { pal[k] = hex(s.getPropertyValue(k)); });
+    pal.outline = s.getPropertyValue("--outline").trim(); pal.selc = s.getPropertyValue("--sel").trim();
+    pal.dropc = s.getPropertyValue("--drop").trim(); pal.dropr = s.getPropertyValue("--drop-river").trim();
+    pal.uso = USO.map((u) => (u ? hex(u.cor) : null));
+  }
+  function carregar(src) {
+    return new Promise((ok, erro) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0); ok(x.getImageData(0, 0, im.width, im.height).data); }; im.onerror = erro; im.src = src; });
+  }
+
+  Promise.all([carregar("dados.png"), carregar("base.png"), carregar("fluxo.png"), carregar("solo.png"), fetch("meta.json").then((r) => r.json())]).then(([d, b, f, so, m]) => {
+    meta = m;
+    handA = new Uint8Array(N); handR = new Uint8Array(N); uso = new Uint8Array(N); canal = new Uint8Array(N); hsg = new Uint8Array(N); app = new Uint8Array(N);
+    sombra = new Uint8Array(N); regiao = new Uint8Array(N); dentro = new Uint8Array(N); dir = new Uint8Array(N); accl = new Uint8Array(N); tt = new Uint8Array(N);
+    let nv = 0;
+    for (let i = 0, j = 0; i < N; i++, j += 4) {
+      handA[i] = d[j]; handR[i] = d[j + 1]; uso[i] = d[j + 2] & 15; canal[i] = d[j + 2] >> 4;
+      sombra[i] = b[j]; regiao[i] = b[j + 1]; dentro[i] = b[j + 2] > 127 ? 1 : 0;
+      dir[i] = f[j]; accl[i] = f[j + 1]; tt[i] = f[j + 2]; hsg[i] = so[j] || 3;
+      if (dentro[i]) nv++;
+    }
+    // faixa de 30 m de cada lado dos cursos d'agua (>= 1 km2): a propria celula e as vizinhas
+    for (let i = 0; i < N; i++) {
+      if (!canal[i]) continue;
+      const r0 = (i / W) | 0, c0 = i % W;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const r = r0 + dr, c = c0 + dc; if (r >= 0 && r < H && c >= 0 && c < W) app[r * W + c] = 1; }
+    }
+    down = new Int32Array(N).fill(-1); head = new Int32Array(N).fill(-1); nextUp = new Int32Array(N).fill(-1); validos = new Int32Array(nv);
+    for (let i = 0, k = 0; i < N; i++) {
+      if (!dentro[i]) continue;
+      validos[k++] = i;
+      const c = dir[i]; if (!c) continue;
+      const r = ((i / W) | 0) + DR[c], q = (i % W) + DC[c];
+      if (r < 0 || r >= H || q < 0 || q >= W) continue;
+      const dd = r * W + q; if (!dentro[dd]) continue;
+      down[i] = dd; nextUp[i] = head[dd]; head[dd] = i;
+    }
+    img = ctx.createImageData(W, H);
+    lerPaleta(); calcEscoamento(); desenharSvg(); legenda(); $("loading").hidden = true; agendar(); iniciarGotas(); dcAtualizar();
+  }).catch(() => { $("loading").textContent = "Não foi possível carregar os dados do terreno."; });
+
+  // ---------- Mapa base ----------
+  function agendar() { if (!pendente && handA) { pendente = true; requestAnimationFrame(render); } }
+  function mix(a, c, k) { return [a[0] * (1 - k) + c[0] * k, a[1] * (1 - k) + c[1] * k, a[2] * (1 - k) + c[2] * k]; }
+  function render() {
+    pendente = false;
+    const px = img.data, H_ = st.ref === "rios" ? handR : handA, h10 = Math.round(st.nivel * 10);
+    const VV = st.nivelModo === "vivo" ? st.vivo : [], nV = VV.length;
+    const nivelPx = (i) => {
+      if (!nV) return h10;
+      if (nV === 1) return VV[0].r10;
+      const a = VV[0], b = VV[nV - 1], t = tt[i];          // a: mais a montante (maior tempo ate a foz)
+      if (t >= a.tt) return a.r10; if (t <= b.tt) return b.r10;
+      return b.r10 + (a.r10 - b.r10) * (t - b.tt) / (a.tt - b.tt);
+    };
+    const lo = pal["--water-lo"], hi = pal["--water-hi"], rv = pal["--river"], sl = pal["--shade-lo"], sh = pal["--shade-hi"];
+    const sc = pal["--sel"], bc = pal["--band"], i0 = pal["--iso-near"], i1 = pal["--iso-far"];
+    const t10 = Math.round(st.t * 10), tmax = meta.fluxo.t_max_h * 10, banda = st.banda && st.t > 0;
+    let nAlag = 0;
+    for (let i = 0, j = 0; i < N; i++, j += 4) {
+      if (!dentro[i]) { px[j + 3] = 0; continue; }
+      const t = sombra[i] / 255;
+      let c = [sl[0] + (sh[0] - sl[0]) * t, sl[1] + (sh[1] - sl[1]) * t, sl[2] + (sh[2] - sl[2]) * t];
+      if (st.uso && uso[i]) c = mix(c, pal.uso[uso[i]].map((v) => v * (0.55 + 0.45 * t)), 0.55);
+      if (st.esc && qmm) { const f = Math.min(qmm[i] / st.chuva, 1); const dp = pal["--drop"]; c = mix(c, dp.map((v) => v * (0.55 + 0.45 * t)), 0.1 + 0.8 * f); }
+      if (st.iso) { const f = Math.min(tt[i] / tmax, 1); c = mix(c, [i0[0] + (i1[0] - i0[0]) * f, i0[1] + (i1[1] - i0[1]) * f, i0[2] + (i1[2] - i0[2]) * f].map((v) => v * (0.6 + 0.4 * t)), 0.6); }
+      if (st.sel && st.sel[i]) c = mix(c, sc, 0.42);
+      if (banda && tt[i] <= t10 && tt[i] > t10 - 10) c = mix(c, bc, 0.75);
+      const hv = H_[i];
+      const hl = nV ? nivelPx(i) : h10;
+      if (hl > 0 && hv < 254 && hv <= hl) { const f = Math.min((hl - hv) / 50, 1); c = mix(c, [lo[0] + (hi[0] - lo[0]) * f, lo[1] + (hi[1] - lo[1]) * f, lo[2] + (hi[2] - lo[2]) * f], 0.88); nAlag++; }
+      if (st.rios && canal[i] && (canal[i] === 2 || accl[i] >= LOG_ARROIO + 20)) c = mix(c, rv, canal[i] === 2 ? 0.9 : 0.6);
+      px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    $("k-area").textContent = fmt(nAlag * PX_KM2, 1);
+    $("k-perc").textContent = fmt(nAlag * PX_KM2 / meta.area_bacia_km2 * 100, 1) + "%";
+  }
+
+  function desenharSvg() {
+    // camada vetorial na resolucao da tela: tamanhos em pixels de tela (u = unidades do mapa por pixel)
+    const sw = stage.clientWidth, sh = stage.clientHeight, sc = (zw.clientWidth / W) * zs || 1, u = 1 / sc;
+    const svg = $("ovl"); svg.setAttribute("viewBox", `${(-zx * u).toFixed(2)} ${(-zy * u).toFixed(2)} ${(sw * u).toFixed(2)} ${(sh * u).toFixed(2)}`);
+    const fonte = 'font-family="Nunito, Trebuchet MS, sans-serif" font-weight="700"';
+    const txt = (x, y, t, px, cor, anc) => `<text x="${x}" y="${y}" ${fonte} font-size="${(px * u).toFixed(2)}" text-anchor="${anc || "start"}" style="fill:${cor};stroke:var(--map-bg);stroke-width:${(3 * u).toFixed(2)}px;paint-order:stroke;stroke-linejoin:round">${t}</text>`;
+    let s = `<path d="${meta.bacia}" fill="none" stroke="${pal.outline}" stroke-width="1.6"/>`;
+    if (st.reg) {
+      s += meta.regioes.map((r) => `<path d="${r.d}" fill="none" stroke="${pal.outline}" stroke-opacity="0.55" stroke-width="0.9" stroke-dasharray="3 2"/>`).join("");
+      s += meta.regioes.map((r) => txt(r.x, r.y, "R" + String(r.id).padStart(2, "0"), 12, pal.outline, "middle")).join("");
+    }
+    if (st.caminho) s += `<polyline points="${st.caminho}" fill="none" style="stroke:var(--sel)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if (st.selIdx >= 0) { const x = st.selIdx % W + 0.5, y = (st.selIdx / W | 0) + 0.5; s += `<circle cx="${x}" cy="${y}" r="${(6 * u).toFixed(2)}" style="fill:var(--sel);stroke:var(--map-bg)" stroke-width="2" vector-effect="non-scaling-stroke"/>`; }
+    const pp = meta.pontos || {}, lbl = (x, y, t, cor) => txt(x + 8 * u, y - 6 * u, t, 12, cor);
+    if (st.trechos) (pp.trechos || []).forEach((p) => { const [x, y] = p.xy, r = 5 * u; s += `<rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" transform="rotate(45 ${x} ${y})" style="fill:var(--band);stroke:var(--map-bg)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` + lbl(x, y, p.n, "var(--band)"); });
+    if (st.coleta) (pp.coleta || []).forEach((p) => { const [x, y] = p.xy; s += `<circle cx="${x}" cy="${y}" r="${(5.5 * u).toFixed(2)}" style="fill:var(--accent);stroke:var(--map-bg)" stroke-width="2" vector-effect="non-scaling-stroke"/>` + lbl(x, y, p.n, "var(--ink)"); });
+    if (st.dc && dcEst.length) dcEst.forEach((e) => {
+      const r = (e.rio ? 7 : 5) * u, cor = e.cor, sel = e.codigo === dcSel;
+      s += `<circle cx="${e.x}" cy="${e.y}" r="${(sel ? r * 1.4 : r).toFixed(2)}" style="fill:${cor};stroke:${sel ? "var(--ink)" : "var(--map-bg)"}" stroke-width="${sel ? 3 : 2}" vector-effect="non-scaling-stroke"/>`;
+      s += txt(e.x + 10 * u, e.y + 4 * u, esc(e.cidade) + (e.nivel != null ? " · " + fmt(e.nivel, 2) + " m" : e.h24 != null ? " · " + fmt(e.h24, 0) + " mm/24 h" : ""), 12, "var(--ink)");
+    });
+    const f = meta.fluxo.foz, fx = f % W + 0.5, fy = (f / W | 0) + 0.5;
+    s += txt(fx + 8 * u, fy - 6 * u, "Foz", 14, "var(--ink)");
+    svg.innerHTML = s;
+  }
+
+
+  function legenda() {
+    const s = getComputedStyle(document.documentElement);
+    let h = `<span><span class="sw" style="background:var(--drop)"></span>gotas</span><span><span class="sw" style="background:var(--river)"></span>rios</span>`;
+    if (st.sel) h += `<span><span class="sw" style="background:var(--sel)"></span>área que escoa para o ponto</span>`;
+    if (st.banda && st.t > 0) h += `<span><span class="sw" style="background:var(--band)"></span>de onde vem a água que passa na foz agora</span>`;
+    if (pulso) h += `<span>gotas: chuva de 1 h descendo até a foz</span>`;
+    if (st.iso) h += `<span>tempo até a foz: 0 h <span class="ramp sw" style="width:70px;background:linear-gradient(90deg,var(--iso-near),var(--iso-far))"></span> ${fmt(meta.fluxo.t_max_h, 0)} h</span>`;
+    if (st.esc) h += `<span>enxurrada: pouca <span class="ramp sw" style="width:60px;background:linear-gradient(90deg,var(--shade-lo),var(--drop))"></span> toda a chuva</span>`;
+    if (st.dc && dcEst.length) h += `<span><span class="sw" style="background:#69a82f;border-radius:50%"></span><span class="sw" style="background:#faba00;border-radius:50%"></span><span class="sw" style="background:#e67819;border-radius:50%"></span><span class="sw" style="background:#e20228;border-radius:50%"></span>rio: normal → inundação</span><span><span class="sw" style="background:var(--drop);border-radius:50%"></span>pluviômetro (chuva 24 h)</span>`;
+    if (st.coleta && meta.pontos) h += `<span><span class="sw" style="background:var(--accent);border-radius:50%"></span>pontos de coleta</span>`;
+    if (st.trechos && meta.pontos) h += `<span><span class="sw" style="background:var(--band);transform:rotate(45deg)"></span>trechos a revitalizar</span>`;
+    if (st.nivel > 0 || (st.nivelModo === "vivo" && st.vivo.some((v) => v.r10 > 0))) h += `<span>profundidade <span class="ramp sw" style="width:60px;background:linear-gradient(90deg,var(--water-lo),var(--water-hi))"></span> ≥ 5 m</span>`;
+    $("legenda").innerHTML = h;
+  }
+
+  // ---------- Gotas (partículas) ----------
+  let P = null, rafG = 0;
+  function novaGota(k) { P.idx[k] = validos[(Math.random() * validos.length) | 0]; P.prog[k] = Math.random(); P.vida[k] = 0; }
+  function ajustarGotas(n) {
+    const old = P; P = { n, idx: new Int32Array(n), prog: new Float32Array(n), vida: new Uint16Array(n) };
+    for (let k = 0; k < n; k++) { if (old && k < old.n) { P.idx[k] = old.idx[k]; P.prog[k] = old.prog[k]; P.vida[k] = old.vida[k]; } else novaGota(k); }
+  }
+  function iniciarGotas() { ajustarGotas(st.nGotas); cancelAnimationFrame(rafG); if (st.gotasOn) rafG = requestAnimationFrame(passoGotas); }
+  // Pulso de chuva: todas as gotas caem em t = 0 e descem com as velocidades do modelo (celulas de 30 m por hora)
+  let pulso = null;
+  function iniciarPulso() {
+    const n = st.nGotas; pulso = { n, idx: new Int32Array(n), prog: new Float32Array(n), vivo: new Uint8Array(n).fill(1), t: 0 };
+    for (let k = 0; k < n; k++) pulso.idx[k] = validos[(Math.random() * validos.length) | 0];
+  }
+  function avancarPulso(dh) {
+    const sub = Math.max(1, Math.ceil(dh / 0.05)), h = dh / sub;
+    for (let s = 0; s < sub; s++) for (let k = 0; k < pulso.n; k++) {
+      if (!pulso.vivo[k]) continue;
+      let i = pulso.idx[k]; const a = accl[i];
+      pulso.prog[k] += (a >= LOG_RIO ? 180 : a >= LOG_ARROIO ? 120 : 36) * h;
+      while (pulso.prog[k] >= 1) { pulso.prog[k] -= 1; const d = down[i]; if (d < 0) { pulso.vivo[k] = 0; break; } i = d; }
+      pulso.idx[k] = i;
+    }
+  }
+  function sincronizarPulso() {
+    if (st.t < pulso.t) iniciarPulso();
+    if (st.t > pulso.t) { avancarPulso(st.t - pulso.t); pulso.t = st.t; }
+  }
+  function desenharPulso() {
+    sincronizarPulso();
+    const tam = inicioQuadro(0.18), rio = [];
+    gx.fillStyle = pal.dropc; gx.beginPath();
+    for (let k = 0; k < pulso.n; k++) {
+      if (!pulso.vivo[k]) continue;
+      const i = pulso.idx[k], d = down[i], x0 = i % W, y0 = (i / W) | 0;
+      let x = x0, y = y0; if (d >= 0) { const p = Math.min(pulso.prog[k], 1); x = x0 + (d % W - x0) * p; y = y0 + (((d / W) | 0) - y0) * p; }
+      if (accl[i] >= LOG_ARROIO) rio.push(x, y); else gx.rect(x + 0.5 - tam / 2, y + 0.5 - tam / 2, tam, tam);
+    }
+    gx.fill(); gx.fillStyle = pal.dropr; gx.beginPath();
+    for (let q = 0; q < rio.length; q += 2) gx.rect(rio[q] + 0.5 - tam * 0.7, rio[q + 1] + 0.5 - tam * 0.7, tam * 1.4, tam * 1.4);
+    gx.fill();
+  }
+  // gotas desenhadas na resolucao da tela (nitidas em qualquer zoom), com tamanho fixo em pixels
+  let dpr = 1;
+  function ajustarCanvasGotas() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(stage.clientWidth * dpr), h = Math.round(stage.clientHeight * dpr);
+    if (gc.width !== w || gc.height !== h) { gc.width = w; gc.height = h; }
+  }
+  function limparGotas() { gx.setTransform(1, 0, 0, 1, 0, 0); gx.clearRect(0, 0, gc.width, gc.height); }
+  function inicioQuadro(fade) {
+    gx.setTransform(1, 0, 0, 1, 0, 0);
+    gx.globalCompositeOperation = "destination-out"; gx.fillStyle = `rgba(0,0,0,${fade})`; gx.fillRect(0, 0, gc.width, gc.height);
+    gx.globalCompositeOperation = "source-over";
+    const s = (zw.clientWidth / W) * zs;
+    gx.setTransform(dpr * s, 0, 0, dpr * s, dpr * zx, dpr * zy);
+    return 2.4 / s;
+  }
+  function passoGotas() {
+    if (pulso) { desenharPulso(); rafG = requestAnimationFrame(passoGotas); return; }
+    const tam = inicioQuadro(0.10);
+    gx.fillStyle = pal.dropc; gx.beginPath();
+    const rioPts = [];
+    for (let k = 0; k < P.n; k++) {
+      let i = P.idx[k]; const a = accl[i];
+      const v = a >= LOG_RIO ? 0.55 : a >= LOG_ARROIO ? 0.32 : 0.07;
+      P.prog[k] += v; P.vida[k]++;
+      while (P.prog[k] >= 1) { P.prog[k] -= 1; const d = down[i]; if (d < 0) { novaGota(k); i = P.idx[k]; break; } i = d; }
+      P.idx[k] = i;
+      if (P.vida[k] > 4000) { novaGota(k); continue; }
+      const d = down[i], x0 = i % W, y0 = (i / W) | 0;
+      let x = x0, y = y0;
+      if (d >= 0) { const p = P.prog[k]; x = x0 + (d % W - x0) * p; y = y0 + (((d / W) | 0) - y0) * p; }
+      if (accl[i] >= LOG_ARROIO) rioPts.push(x, y); else gx.rect(x + 0.5 - tam / 2, y + 0.5 - tam / 2, tam, tam);
+    }
+    gx.fill();
+    gx.fillStyle = pal.dropr; gx.beginPath();
+    for (let q = 0; q < rioPts.length; q += 2) gx.rect(rioPts[q] + 0.5 - tam * 0.65, rioPts[q + 1] + 0.5 - tam * 0.65, tam * 1.3, tam * 1.3);
+    gx.fill();
+    if (st.gotasOn) rafG = requestAnimationFrame(passoGotas);
+  }
+  $("play-gotas").textContent = st.gotasOn ? "Pausar" : "Continuar";
+  $("play-gotas").addEventListener("click", () => {
+    st.gotasOn = !st.gotasOn; $("play-gotas").textContent = st.gotasOn ? "Pausar" : "Continuar";
+    if (st.gotasOn && P) rafG = requestAnimationFrame(passoGotas); else cancelAnimationFrame(rafG);
+  });
+  $("n-gotas").addEventListener("input", (e) => { st.nGotas = +e.target.value; if (P) ajustarGotas(st.nGotas); });
+
+  // ---------- Seguir a água ----------
+  function selecionar(i0) {
+    if (!dentro[i0]) return;
+    // encaixa no curso d'agua mais proximo (maior area drenada num raio de ~200 m)
+    const R = Math.max(2, Math.round(7 / Math.sqrt(zs))), r0 = (i0 / W) | 0, c0 = i0 % W;
+    let i = i0;
+    for (let dr = -R; dr <= R; dr++) for (let dc = -R; dc <= R; dc++) {
+      const r = r0 + dr, c = c0 + dc; if (r < 0 || r >= H || c < 0 || c >= W || dr * dr + dc * dc > R * R) continue;
+      const k = r * W + c; if (dentro[k] && accl[k] > accl[i]) i = k;
+    }
+    const sel = new Uint8Array(N), pilha = [i], lista = []; let n = 0; const porUso = new Float64Array(9);
+    sel[i] = 1;
+    while (pilha.length) { const c = pilha.pop(); n++; lista.push(c); porUso[uso[c]]++; for (let u = head[c]; u >= 0; u = nextUp[u]) { if (!sel[u]) { sel[u] = 1; pilha.push(u); } } }
+    st.selCells = Int32Array.from(lista);
+    let pts = [], c = i, dist = 0, guard = 0;
+    while (c >= 0 && guard++ < 20000) { const x = c % W + 0.5, y = (c / W | 0) + 0.5; pts.push(x.toFixed(1) + "," + y.toFixed(1)); const d = down[c]; if (d >= 0) dist += (d % W !== c % W && ((d / W) | 0) !== ((c / W) | 0)) ? 42.43 : 30; c = d; }
+    st.sel = sel; st.selIdx = i; st.caminho = pts.join(" ");
+    $("sel-vazio").hidden = true; $("sel-info").hidden = false;
+    const area = n * PX_KM2;
+    $("s-area").textContent = area < 10 ? fmt(area, 2) : fmt(area, 0);
+    $("s-dist").textContent = fmt(dist / 1000, 1);
+    $("s-tempo").textContent = fmt(tt[i] / 10, 1);
+    $("s-perc").textContent = fmt(area / meta.area_bacia_km2 * 100, area / meta.area_bacia_km2 < 0.01 ? 2 : 1) + "%";
+    const tot = Math.max(1, n);
+    $("s-uso").innerHTML = USO.map((u, k) => ({ u, k, v: porUso[k] })).filter((o) => o.u && o.v / tot >= 0.01).sort((a, b) => b.v - a.v).slice(0, 5)
+      .map((o) => `<div class="bar"><span><span class="sw" style="background:${o.u.cor}"></span>${o.u.nome}</span><span class="track"><span class="fill" style="width:${(o.v / tot * 100).toFixed(1)}%;background:${o.u.cor}"></span></span><span class="v">${fmt(o.v / tot * 100, 0)}%</span></div>`).join("");
+    atualizarSel(); desenharSvg(); legenda(); agendar();
+  }
+  // vazao de pico no ponto escolhido e quanto essa area pesa no pico da foz
+  function atualizarSel() {
+    if (!st.selCells || !qmm) return;
+    const i = st.selIdx, t0 = tt[i], hist = new Float64Array(260); let vj = 0;
+    const a = picoInfo.tp10 - 9, b = picoInfo.tp10;
+    for (const c of st.selCells) { const v = qmm[c] * 0.9; hist[Math.max(0, tt[c] - t0)] += v; if (tt[c] >= a && tt[c] <= b) vj += v; }
+    let pk = 0; for (let t10 = 0; t10 < 260; t10++) { let s = 0; for (let q = Math.max(0, t10 - 9); q <= t10; q++) s += hist[q]; if (s > pk) pk = s; }
+    pk /= 3600;
+    $("s-pico").textContent = pk < 10 ? fmt(pk, 2) : fmt(pk, 0);
+    const pc = picoInfo.vjan > 0 ? vj / picoInfo.vjan * 100 : 0;
+    $("s-contrib").textContent = fmt(pc, pc < 1 ? 2 : 1) + "%";
+  }
+  $("limpar").addEventListener("click", () => { st.sel = null; st.selIdx = -1; st.caminho = null; st.selCells = null; $("sel-vazio").hidden = false; $("sel-info").hidden = true; desenharSvg(); legenda(); agendar(); });
+
+  // ---------- Chegada da chuva (tempo-área) ----------
+  // SCS Curva-Numero (condicao de umidade II); grupos A, B, C, D
+  const CN = { 1: [30, 55, 70, 77], 2: [36, 60, 73, 79], 3: [39, 61, 74, 80], 4: [49, 69, 79, 84], 5: [61, 73, 81, 85], 6: [67, 78, 85, 89], 7: [77, 85, 90, 92], 8: [98, 98, 98, 98] };
+  const CN_CONS = { 5: [55, 69, 78, 82], 6: [62, 71, 78, 81] }, CN_PASTO = [39, 61, 74, 80];
+  function cnUH(u, h, cen) {
+    let tab = CN[u] || CN[3];
+    if (cen && st.conserv && CN_CONS[u]) tab = CN_CONS[u];
+    if (cen && st.pasto && u === 4) tab = CN_PASTO;
+    let cn = tab[h - 1];
+    if (st.amc === 1) cn = cn / (2.281 - 0.01281 * cn); else if (st.amc === 3) cn = cn / (0.427 + 0.00573 * cn);
+    return Math.min(cn, 99);
+  }
+  function escoa(Pmm, cn) { const S = 25400 / cn - 254, Ia = 0.2 * S; return Pmm > Ia ? (Pmm - Ia) * (Pmm - Ia) / (Pmm + 0.8 * S) : 0; }
+  let qmm = null, volH = null, volBase = null, temCen = false, picoInfo = { tp10: 0, vjan: 0 };
+  function calcEscoamento() {
+    const Pm = st.chuva, Lb = new Float32Array(50), Lc = new Float32Array(50);
+    for (let u = 1; u <= 8; u++) for (let h = 1; h <= 4; h++) { Lb[u * 5 + h] = escoa(Pm, cnUH(u, h, false)); Lc[u * 5 + h] = escoa(Pm, cnUH(u, h, true)); }
+    temCen = st.conserv || st.appOn || st.pasto;
+    qmm = new Float32Array(N); volH = new Float64Array(260); volBase = new Float64Array(260);
+    let soma = 0;
+    for (let k = 0; k < validos.length; k++) {
+      const i = validos[k], u = uso[i] || 3, h = hsg[i] || 3, qb = Lb[u * 5 + h];
+      const ua = st.appOn && app[i] && u !== 7 && u !== 8 ? 1 : u, q = temCen ? Lc[ua * 5 + h] : qb;
+      qmm[i] = q; volH[tt[i]] += q * 0.9; volBase[tt[i]] += qb * 0.9; soma += q;
+    }
+    $("k-esc").textContent = fmt(soma / validos.length / Pm * 100, 0) + "%";
+    $("k-vol").textContent = fmt(soma * 0.9 / 1e6, 1);
+    // pico e quem contribui
+    let pk = 0, tp10 = 0; for (let t10 = 0; t10 < 260; t10++) { const q = vazaoH(volH, t10); if (q > pk) { pk = q; tp10 = t10; } }
+    const reg = new Float64Array(32); let vj = 0;
+    for (let k = 0; k < validos.length; k++) { const i = validos[k]; if (tt[i] > tp10 - 10 && tt[i] <= tp10) { const v = qmm[i] * 0.9; reg[regiao[i]] += v; vj += v; } }
+    picoInfo = { tp10, vjan: vj };
+    const lst = meta.regioes.map((r) => ({ id: r.id, v: reg[r.id] })).filter((o) => o.v > 0).sort((a, b) => b.v - a.v).slice(0, 5);
+    $("contrib-reg").innerHTML = lst.map((o) => { const p = o.v / vj * 100; return `<div class="bar"><span>Região R${String(o.id).padStart(2, "0")}</span><span class="track"><span class="fill" style="width:${Math.min(100, p * 2.5).toFixed(1)}%;background:var(--band)"></span></span><span class="v">${fmt(p, 0)}%</span></div>`; }).join("");
+    desenharHidro(); atualizarSel(); if (st.esc) agendar();
+  }
+  function vazaoH(hist, t10) { let c = 0; for (let b = Math.max(0, t10 - 9); b <= t10 && b < hist.length; b++) c += hist[b]; return c / 3600; }
+  function vazao(t) { return volH ? vazaoH(volH, Math.round(t * 10)) : 0; }
+  function desenharHidro() {
+    if (!volH) return;
+    const tmax = 25, serie = [], serieB = [];
+    let pico = 0, tp = 0, picoB = 0;
+    for (let t = 0; t <= tmax; t += 0.2) { const q = vazao(t), qb = vazaoH(volBase, Math.round(t * 10)); serie.push([t, q]); serieB.push([t, qb]); if (q > pico) { pico = q; tp = t; } if (qb > picoB) picoB = qb; }
+    $("c-pico").textContent = fmt(pico, 0);
+    $("c-dif").textContent = temCen ? (pico <= picoB ? "−" : "+") + fmt(Math.abs(pico - picoB) / Math.max(picoB, 1e-6) * 100, 0) + "%" : "sem mudança";
+    const L = 34, R = 352, T = 10, B = 124, ymax = Math.max(Math.max(pico, picoB) * 1.1, 1);
+    const X = (t) => L + (t / tmax) * (R - L), Y = (q) => B - (q / ymax) * (B - T);
+    let s = "";
+    const passo = ymax > 400 ? 200 : ymax > 150 ? 50 : ymax > 40 ? 20 : 5;
+    for (let q = 0; q <= ymax; q += passo) s += `<line x1="${L}" x2="${R}" y1="${Y(q)}" y2="${Y(q)}" style="stroke:var(--line)" stroke-width="0.6"/><text x="${L - 4}" y="${Y(q) + 3}" text-anchor="end">${q}</text>`;
+    for (let t = 0; t <= 24; t += 6) s += `<text x="${X(t)}" y="${B + 13}" text-anchor="middle">${t} h</text>`;
+    const d = serie.map(([t, q], k) => (k ? "L" : "M") + X(t).toFixed(1) + "," + Y(q).toFixed(1)).join("");
+    s += `<path d="${d}L${X(tmax)},${B}L${X(0)},${B}Z" style="fill:var(--water-lo)" fill-opacity="0.45"/><path d="${d}" fill="none" style="stroke:var(--water-hi)" stroke-width="1.6"/>`;
+    if (temCen) { const db = serieB.map(([t, q], k) => (k ? "L" : "M") + X(t).toFixed(1) + "," + Y(q).toFixed(1)).join(""); s += `<path d="${db}" fill="none" style="stroke:var(--muted)" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${R}" y="${T + 8}" text-anchor="end">tracejado: manejo atual</text>`; }
+    s += `<text x="${L}" y="${T - 1}" text-anchor="start">m³/s</text>`;
+    if (st.t > 0) { const q = vazao(st.t); s += `<line x1="${X(st.t)}" x2="${X(st.t)}" y1="${T}" y2="${B}" style="stroke:var(--band)" stroke-width="1.4"/><circle cx="${X(st.t)}" cy="${Y(q)}" r="3.5" style="fill:var(--band)"/>`; }
+    $("hidro").innerHTML = s;
+    $("k-pico").textContent = fmt(pico, 0); $("k-tpico").textContent = fmt(tp, 1);
+  }
+  let rafT = 0, tocando = false, tUlt = 0;
+  function setT(v) {
+    st.t = Math.max(0, Math.min(24, v)); $("tempo").value = st.t; $("out-t").textContent = fmt(st.t, 1);
+    if (st.t > 0 && !pulso && validos) { iniciarPulso(); limparGotas(); cancelAnimationFrame(rafG); rafG = requestAnimationFrame(passoGotas); }
+    if (st.t === 0 && pulso) { pulso = null; limparGotas(); cancelAnimationFrame(rafG); if (st.gotasOn) rafG = requestAnimationFrame(passoGotas); }
+    desenharHidro(); legenda(); if (st.banda) agendar();
+  }
+  // fim da animacao: volta a mostrar a chuva continua (o grafico continua marcando o fim)
+  function encerrarPulso() { pulso = null; limparGotas(); cancelAnimationFrame(rafG); if (st.gotasOn) rafG = requestAnimationFrame(passoGotas); legenda(); }
+  $("chk-banda").addEventListener("change", (e) => { st.banda = e.target.checked; legenda(); agendar(); });
+  function tocar(ts) { if (!tocando) return; if (tUlt) setT(st.t + (ts - tUlt) / 1000 * 1.6); tUlt = ts; if (st.t >= 24) { tocando = false; $("play-t").textContent = "Repetir"; encerrarPulso(); return; } rafT = requestAnimationFrame(tocar); }
+  $("play-t").addEventListener("click", () => {
+    if (tocando) { tocando = false; $("play-t").textContent = "Continuar"; return; }
+    if (st.t >= 24 || st.t === 0) { setT(0); setT(0.01); }
+    tocando = true; tUlt = 0; $("play-t").textContent = "Pausar"; rafT = requestAnimationFrame(tocar);
+  });
+  $("tempo").addEventListener("input", (e) => { tocando = false; $("play-t").textContent = "Iniciar"; setT(+e.target.value); if (st.t >= 24) encerrarPulso(); });
+  let tCalc = 0;
+  const recalc = () => { clearTimeout(tCalc); tCalc = setTimeout(() => { if (handA) calcEscoamento(); }, 60); };
+  $("chuva").addEventListener("input", (e) => { st.chuva = +e.target.value; $("out-chuva").textContent = st.chuva + " mm"; recalc(); });
+  [1, 2, 3].forEach((a) => $("amc-" + a).addEventListener("click", () => { st.amc = a; [1, 2, 3].forEach((b) => $("amc-" + b).setAttribute("aria-pressed", a === b)); recalc(); }));
+  [["cen-conserv", "conserv"], ["cen-app", "appOn"], ["cen-pasto", "pasto"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; recalc(); }));
+
+  // ---------- Nivel de cheia e camadas ----------
+  $("nivel").addEventListener("input", (e) => { st.nivel = +e.target.value; if (st.nivelModo !== "manual") setModoNivel("manual"); $("out-nivel").textContent = fmt(st.nivel, 1); legenda(); agendar(); });
+  function setModoNivel(m) {
+    st.nivelModo = m;
+    $("modo-vivo").setAttribute("aria-pressed", m === "vivo"); $("modo-manual").setAttribute("aria-pressed", m === "manual");
+    $("un-nivel").textContent = m === "vivo" ? "m acima do nível normal do rio" : "m acima do leito";
+    $("vivo-info").hidden = m !== "vivo";
+    if (m === "vivo") { setRef("rios"); mostrarVivo(); } else $("out-nivel").textContent = fmt(st.nivel, 1);
+    legenda(); agendar();
+  }
+  function mostrarVivo() {
+    if (st.nivelModo !== "vivo") return;
+    if (!st.vivo.length) { $("out-nivel").textContent = "–"; return; }
+    const mx = Math.max(...st.vivo.map((v) => v.r10)) / 10;
+    $("out-nivel").textContent = fmt(mx, 1);
+    $("vivo-info").textContent = st.vivo.map((v) => `${v.cidade}: ${fmt(v.r10 / 10, 2)} m acima do normal (${fmt(v.nivel, 2)} m na régua; normal ${fmt(v.base, 2)} m)`).join(" · ")
+      + ". Entre as estações o nível é interpolado ao longo do rio; o normal é o menor nível dos últimos 30 dias.";
+  }
+  $("modo-vivo").addEventListener("click", () => setModoNivel("vivo"));
+  $("modo-manual").addEventListener("click", () => setModoNivel("manual"));
+  function setRef(r) { st.ref = r; $("ref-rios").setAttribute("aria-pressed", r === "rios"); $("ref-arroios").setAttribute("aria-pressed", r === "arroios"); agendar(); }
+  $("ref-rios").addEventListener("click", () => setRef("rios")); $("ref-arroios").addEventListener("click", () => setRef("arroios"));
+  [["chk-dc", "dc"], ["chk-coleta", "coleta"], ["chk-trechos", "trechos"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; if (meta) { desenharSvg(); legenda(); } }));
+  [["chk-esc", "esc"], ["chk-iso", "iso"], ["chk-uso", "uso"], ["chk-rios", "rios"]].forEach(([id, k]) => $(id).addEventListener("change", (e) => { st[k] = e.target.checked; legenda(); agendar(); }));
+  $("chk-reg").addEventListener("change", (e) => { st.reg = e.target.checked; if (meta) desenharSvg(); });
+
+  // ---------- Consulta de ponto ----------
+  function celula(ev) { const rc = cv.getBoundingClientRect(); const x = Math.floor((ev.clientX - rc.left) / rc.width * W), y = Math.floor((ev.clientY - rc.top) / rc.height * H); return x < 0 || y < 0 || x >= W || y >= H ? -1 : y * W + x; }
+  const stage = $("stage"), zw = $("zw");
+  function sondar(ev) {
+    if (!handA) return;
+    const p = $("probe"), i = celula(ev);
+    if (i < 0 || !dentro[i]) { p.hidden = true; return; }
+    const akm = Math.pow(10, accl[i] / 40) * PX_KM2, hv = (st.ref === "rios" ? handR : handA)[i];
+    const u = USO[uso[i]] ? USO[uso[i]].nome : "sem classe";
+    p.innerHTML = `<div class="label">Ponto</div><div class="t">Escoam para cá: ${akm < 1 ? fmt(akm, 2) : fmt(akm, 0)} km²</div><div class="t">Até a foz: ${fmt(tt[i] / 10, 1)} h</div><div class="t">Altura acima do rio: ${hv >= 254 ? "> 25 m" : fmt(hv / 10, 1) + " m"}</div><div class="t">${u}${regiao[i] ? " · R" + String(regiao[i]).padStart(2, "0") : ""}</div>`;
+    p.hidden = false;
+    const sr = stage.getBoundingClientRect(), mx = ev.clientX - sr.left, my = ev.clientY - sr.top, pw = p.offsetWidth, ph = p.offsetHeight, g = 16;
+    let lx = mx + g, ty = my + g; if (lx + pw > sr.width) lx = mx - g - pw; if (ty + ph > sr.height) ty = my - g - ph;
+    p.style.left = Math.max(0, lx) + "px"; p.style.top = Math.max(0, ty) + "px";
+  }
+  stage.addEventListener("pointermove", sondar);
+  stage.addEventListener("pointerleave", () => { $("probe").hidden = true; });
+
+  // ---------- Zoom, arraste e clique ----------
+  let zs = 1, zx = 0, zy = 0;
+  function aplicarZoom() {
+    const w = stage.clientWidth, h = stage.clientHeight, fit = Math.min(w / W, h / H), bw = W * fit, bh = H * fit;
+    zw.style.width = bw + "px"; zw.style.height = bh + "px";
+    zs = Math.max(1, Math.min(16, zs));
+    const sw = bw * zs, sh = bh * zs;
+    zx = sw <= w ? (w - sw) / 2 : Math.min(0, Math.max(w - sw, zx));
+    zy = sh <= h ? (h - sh) / 2 : Math.min(0, Math.max(h - sh, zy));
+    zw.style.transform = `translate(${zx}px, ${zy}px) scale(${zs})`;
+    ajustarCanvasGotas(); limparGotas();
+    stage.classList.toggle("zoomed", zs > 1.001);
+    if (meta) desenharSvg();
+  }
+  function zoomEm(mx, my, f) { const n = Math.max(1, Math.min(16, zs * f)), k = n / zs; zx = mx - (mx - zx) * k; zy = my - (my - zy) * k; zs = n; aplicarZoom(); }
+  stage.addEventListener("wheel", (e) => { e.preventDefault(); const r = stage.getBoundingClientRect(); zoomEm(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  const ptr = new Map(); let pinch = null, ini = null, moveu = false;
+  stage.addEventListener("pointerdown", (e) => {
+    ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); ini = { x: e.clientX, y: e.clientY }; moveu = false;
+    if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) }; moveu = true; }
+    if (zs > 1 || ptr.size === 2) { try { stage.setPointerCapture(e.pointerId); } catch (er) {} }
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!ptr.has(e.pointerId)) return;
+    const p0 = ptr.get(e.pointerId), r = stage.getBoundingClientRect();
+    ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ini && Math.hypot(e.clientX - ini.x, e.clientY - ini.y) > 5) moveu = true;
+    if (ptr.size === 2 && pinch) { const [a, b] = [...ptr.values()], d = Math.hypot(a.x - b.x, a.y - b.y); zoomEm((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, d / pinch.d); pinch.d = d; }
+    else if (zs > 1 && moveu) { stage.classList.add("dragging"); zx += e.clientX - p0.x; zy += e.clientY - p0.y; aplicarZoom(); }
+  });
+  const solta = (e) => {
+    const clique = ptr.size === 1 && !moveu && e.type === "pointerup";
+    ptr.delete(e.pointerId); if (ptr.size < 2) pinch = null; if (!ptr.size) stage.classList.remove("dragging");
+    if (clique && handA) { const i = celula(e); if (i >= 0 && dentro[i]) selecionar(i); }
+  };
+  stage.addEventListener("pointerup", solta); stage.addEventListener("pointercancel", solta);
+  const centro = () => [stage.clientWidth / 2, stage.clientHeight / 2];
+  $("z-in").addEventListener("click", () => zoomEm(...centro(), 1.6));
+  $("z-out").addEventListener("click", () => zoomEm(...centro(), 1 / 1.6));
+  $("z-reset").addEventListener("click", () => { zs = 1; zx = 0; zy = 0; aplicarZoom(); });
+  window.addEventListener("resize", aplicarZoom);
+  aplicarZoom();
+
+  // ---------- Defesa Civil RS: Sinimbu e Santa Cruz do Sul ----------
+  const DC_URL = /^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent/.test(location.hostname) ? "api/defesacivil" : "https://redehidrometeorologica.defesacivil.rs.gov.br/graphql";
+  const Q_TAGS = `query Tags_data {
+  tags_data(clients: ["casa-militar-defesa-civil-rs"]) {
+    qualle_meteorologia {
+      codigo
+      name { prefix general local }
+      show
+      timestamp
+      position { bacia latitude longitude regiao altitude filtros { outros { crepdec { nome { value } codigo { value } } } } }
+      data {
+        rio { rio_alarmes { inundacao { ativo { value } status { value } } } rio_nome { value } rio_nivel { value } rio_nivel_tendencia { value } rio_area_drenagem { value } homologacao { relacao { valido { value } } } }
+        chuva { acumulado { min005 { value } h001 { value } h003 { value } h006 { value } h012 { value } h024 { value } h048 { value } h168 { value } } homologacao { relacao { valido { value } } } }
+        pressaoatmos { atual { value } historico { diaanterior { media { value } } diaatual { media { value } } } tendencia { value } homologacao { relacao { valido { value } } } }
+        senstermica { atual { value } historico { diaatual { media { value } } diaanterior { media { value } } } tendencia { value } homologacao { relacao { valido { value } } } }
+        radiacaosolar { atual { value } homologacao { relacao { valido { value } } } }
+        temperatura { atual { value } historico { diaanterior { media { value } } diaatual { media { value } maxima { value } minima { value } } } tendencia { value } homologacao { relacao { valido { value } } } }
+        umidade { atual { value } historico { diaanterior { media { value } } diaatual { media { value } } } tendencia { value } homologacao { relacao { valido { value } } } }
+        vento { direcao { value } velocidade_maxima { value } velocidade_media { value } homologacao { relacao { valido { value } } } }
+      }
+      type
+      filter { relacao { tem_chuva_acumulada tem_nivel_do_rio tem_pressao_atmosferica tem_sensacao_termica tem_umidade tem_vazao_do_rio tem_vento } }
+      resource { estacao { estado { manutencao { value } } } }
+    }
+    proximaAtualizacaoEm
+  }
+}`;
+  const Q_HIST = `query Historic($stationCode: String!, $startDate: String!, $endDate: String!, $interval: QueryInterval) {
+  historic(
+    system: Qualle_Hidrometeorologia
+    client: "casa-militar-defesa-civil-rs"
+    stationCode: $stationCode
+    startDate: $startDate
+    endDate: $endDate
+    interval: $interval
+    opts: { ordenacao: ASC }
+  )
+}`;
+  const DC_COR = { 0: "#69a82f", 1: "#faba00", 2: "#e67819", 3: "#e20228" }, DC_TXT = { 0: "Normal", 1: "Atenção", 2: "Alerta", 3: "Inundação" };
+  // estacoes de interesse: pelo nome; se o nome nao trouxer a cidade, a estacao mais proxima do centro da cidade (ate 15 km)
+  const ALVOS = [
+    { chave: "sinimbu", cidade: "Sinimbu", lat: -29.5361, lon: -52.5233 },
+    { chave: "santa cruz do sul", cidade: "Santa Cruz do Sul", lat: -29.7178, lon: -52.4258 }
+  ];
+  let dcEst = [], dcSel = null, dcTimer = 0, dcSerie = {};
+  const vv = (o) => (o && o.value != null && isFinite(+o.value) ? +o.value : null);
+  const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const sem = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const distKm = (a, b, c, d) => { const R = 6371, x = (d - b) * Math.PI / 180 * Math.cos((a + c) / 2 * Math.PI / 180), y = (c - a) * Math.PI / 180; return R * Math.hypot(x, y); };
+  function lonlatPx(lon, lat) {
+    const g = meta.geo, u = lon - g.l0, v = lat - g.b0, b = [1, u, v, u * u, u * v, v * v];
+    let c = 0, r = 0; for (let k = 0; k < 6; k++) { c += g.col[k] * b[k]; r += g.row[k] * b[k]; }
+    return [c, r];
+  }
+  async function dcPost(body) {
+    const r = await fetch(DC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (j.errors && j.errors.length) throw new Error(j.errors[0].message || "erro da API");
+    return j.data;
+  }
+  function dcMsg(t, erro) { const el = $("dc-status"); el.textContent = t; el.classList.toggle("erro", !!erro); }
+  function escolher(lst) {
+    const out = [];
+    // so estacoes que caem dentro do mapa da sub-bacia (exclui, por exemplo, Santa Cruz do Sul / Venancio Aires)
+    lst = lst.filter((e) => {
+      const lat = +e.position?.latitude, lon = +e.position?.longitude; if (!isFinite(lat) || !isFinite(lon)) return false;
+      if (/venancio/.test(sem([e.name?.general, e.name?.local].join(" ")))) return false;
+      const [x, y] = lonlatPx(lon, lat); return x >= 0 && y >= 0 && x < W && y < H;
+    });
+    for (const alvo of ALVOS) {
+      const comNome = lst.filter((e) => sem([e.name?.prefix, e.name?.general, e.name?.local, e.position?.filtros?.outros?.crepdec?.nome?.value].join(" ")).includes(alvo.chave));
+      let cands = comNome.length ? comNome : lst.filter((e) => isFinite(+e.position?.latitude) && distKm(alvo.lat, alvo.lon, +e.position.latitude, +e.position.longitude) <= 15);
+      // prefere estacao com sensor de rio, depois a mais proxima
+      cands = cands.map((e) => ({ e, d: isFinite(+e.position?.latitude) ? distKm(alvo.lat, alvo.lon, +e.position.latitude, +e.position.longitude) : 99, rio: !!e.filter?.relacao?.tem_nivel_do_rio }))
+        .sort((p, q) => (q.rio - p.rio) || (p.d - q.d));
+      cands.forEach((c) => { if (!out.some((o) => o.e.codigo === c.e.codigo)) out.push({ ...c, cidade: alvo.cidade }); });
+    }
+    return out;
+  }
+  async function dcAtualizar() {
+    clearTimeout(dcTimer);
+    let prox = 5 * 60 * 1000;
+    try {
+      const d = await dcPost({ query: Q_TAGS });
+      const td = d.tags_data, sel = escolher(td.qualle_meteorologia || []);
+      dcEst = sel.map(({ e, cidade }) => {
+        const lat = +e.position?.latitude, lon = +e.position?.longitude, [x, y] = lonlatPx(lon, lat);
+        const rio = e.filter?.relacao?.tem_nivel_do_rio ? e.data?.rio : null, ch = e.data?.chuva;
+        const status = rio ? vv(rio.rio_alarmes?.inundacao?.status) : null, ativo = rio ? rio.rio_alarmes?.inundacao?.ativo?.value : null;
+        const nome = [e.name?.general, e.name?.local].filter(Boolean).join(" – ") || e.codigo;
+        return {
+          codigo: e.codigo, nome, cidade, x, y, rio: !!rio,
+          nivel: rio ? vv(rio.rio_nivel) : null, tend: rio ? vv(rio.rio_nivel_tendencia) : null, rioNome: rio?.rio_nome?.value || "",
+          status, ativo, cor: rio ? (ativo === true && status != null ? DC_COR[status] || "#ffffff" : "#ffffff") : getComputedStyle(document.documentElement).getPropertyValue("--drop").trim(),
+          h1: vv(ch?.acumulado?.h001), h24: vv(ch?.acumulado?.h024),
+          chValida: ch?.homologacao?.relacao?.valido?.value !== false, rioValido: rio?.homologacao?.relacao?.valido?.value !== false,
+          manut: e.resource?.estacao?.estado?.manutencao?.value === true, ts: e.timestamp
+        };
+      });
+      if (!dcEst.length) dcMsg("Não encontrei estações da Defesa Civil em Sinimbu ou em Santa Cruz do Sul na resposta da rede.", true);
+      else { const ult = dcEst.map((e) => e.ts).filter(Boolean).sort().pop(); dcMsg(`Leitura de ${ult ? ult.slice(8, 10) + "/" + ult.slice(5, 7) + " às " + ult.slice(11, 16) : "–"} (horário de Brasília) · próxima atualização automática em até 5 min`); }
+      if (td.proximaAtualizacaoEm) { const t = Date.parse(td.proximaAtualizacaoEm.endsWith("Z") ? td.proximaAtualizacaoEm : td.proximaAtualizacaoEm + "Z") - Date.now() + 20000; if (isFinite(t)) prox = Math.min(10 * 60000, Math.max(60000, t)); }
+      dcCards(); desenharSvg(); legenda();
+      $("dc-acoes").hidden = !dcEst.length;
+      await Promise.all(dcEst.map((e) => dcHistorico(e.codigo)));
+      await Promise.all(dcEst.filter((e) => e.rio).map((e) => dcBase(e.codigo)));
+      dcCards(); calcVivo();
+    } catch (err) {
+      console.error("Defesa Civil:", err);
+      const rede = err instanceof TypeError && /fetch|network|load/i.test(err.message || "");
+      const onde = location.protocol === "file:" ? "arquivo local" : location.hostname || "desconhecido";
+      dcMsg((rede
+        ? "Não foi possível acessar a API da Defesa Civil a partir desta página. Use a versão publicada no servidor (Easypanel); dentro do Claude ou aberta como arquivo, o navegador bloqueia a consulta."
+        : "A API respondeu, mas houve um erro ao ler os dados.") + ` [${onde} · ${err && err.message ? err.message : err}]`, true);
+    }
+    dcTimer = setTimeout(dcAtualizar, prox);
+  }
+  const dtBR = (d) => { const p = (n) => String(n).padStart(2, "0"), b = new Date(d.getTime() - 3 * 3600000); return `${b.getUTCFullYear()}-${p(b.getUTCMonth() + 1)}-${p(b.getUTCDate())} ${p(b.getUTCHours())}:${p(b.getUTCMinutes())}:00`; };
+  let dcBase30 = {};
+  async function dcBase(cod) {
+    // nivel normal do rio: menor nivel horario dos ultimos 30 dias
+    try {
+      const agora = new Date(), d = await dcPost({ query: Q_HIST, variables: { stationCode: cod, startDate: dtBR(new Date(agora - 30 * 86400000)), endDate: dtBR(agora), interval: "HOUR_1" } });
+      const nv = ((d.historic && d.historic.items) || []).map((q) => q.rio_nivel).filter((q) => q != null).map(Number);
+      if (nv.length) dcBase30[cod] = Math.min(...nv);
+    } catch (err) { console.error("Base 30 dias", cod, err); }
+  }
+  function ttPerto(x, y) {
+    const r0 = Math.round(y), c0 = Math.round(x);
+    let best = -1, bd = 1e9;
+    for (let dr = -15; dr <= 15; dr++) for (let dc = -15; dc <= 15; dc++) {
+      const r = r0 + dr, c = c0 + dc; if (r < 0 || r >= H || c < 0 || c >= W) continue;
+      const k = r * W + c; if (!dentro[k]) continue;
+      const dd = dr * dr + dc * dc - accl[k] * 0.02; if (dd < bd) { bd = dd; best = k; }   // prefere o canal
+    }
+    return best >= 0 ? tt[best] : null;
+  }
+  function calcVivo() {
+    st.vivo = dcEst.filter((e) => e.rio && e.nivel != null).map((e) => {
+      const serie = (dcSerie[e.codigo] || []).map((q) => q.rio_nivel).filter((q) => q != null).map(Number);
+      const base = dcBase30[e.codigo] ?? (serie.length ? Math.min(...serie) : null);
+      const t = ttPerto(e.x, e.y);
+      return base == null || t == null ? null : { cidade: e.cidade, nivel: e.nivel, base, tt: t, r10: Math.max(0, Math.round((e.nivel - base) * 10)) };
+    }).filter(Boolean).sort((a, b) => b.tt - a.tt);
+    if (!st.vivo.length) $("vivo-info").textContent = "As estações não informaram nível do rio agora; use o modo manual.";
+    mostrarVivo(); legenda(); agendar();
+  }
+  async function dcHistorico(cod) {
+    try {
+      const agora = new Date(), d = await dcPost({ query: Q_HIST, variables: { stationCode: cod, startDate: dtBR(new Date(agora - 48 * 3600000)), endDate: dtBR(agora), interval: "MIN_10" } });
+      dcSerie[cod] = (d.historic && d.historic.items) || [];
+    } catch (err) { console.error("Historico", cod, err); }
+  }
+  function dcCards() {
+    $("dc-cards").innerHTML = dcEst.map((e) => {
+      const it = dcSerie[e.codigo] || [], nv = it.map((q) => (q.rio_nivel == null ? null : +q.rio_nivel)).filter((q) => q != null);
+      const min48 = nv.length ? Math.min(...nv) : null, sub = e.nivel != null && min48 != null ? e.nivel - min48 : null;
+      const chip = e.rio ? `<span class="dc-chip" style="background:${e.cor}">${e.ativo === true && e.status != null ? DC_TXT[e.status] : "Sem cota de alerta"}</span>` : `<span class="dc-chip" style="background:var(--drop)">Pluviômetro</span>`;
+      const tend = e.tend == null ? "" : Math.abs(e.tend) < 0.005 ? "estável na última hora" : `${e.tend > 0 ? "subindo" : "descendo"} ${fmt(Math.abs(e.tend) * 100, 0)} cm em relação à média da última hora`;
+      const nivel = e.rio ? (e.nivel == null ? `<div class="dc-nivel"><span>nível sem leitura nos últimos 20 minutos</span></div>` : `<div class="dc-nivel"><b>${fmt(e.nivel, 2)} m</b><span>${esc(tend)}${e.rioValido ? "" : " *"}</span></div>`) : "";
+      const varia = sub != null ? `<div class="dc-sub">Variação nas últimas 48 h: ${fmt(min48, 2)} a ${fmt(Math.max(...nv), 2)} m (agora ${fmt(sub, 2)} m acima do mínimo)</div>` : "";
+      const chuva = `<div class="dc-chuva">Chuva: ${e.h1 == null ? "–" : fmt(e.h1, 1)} mm na última hora · ${e.h24 == null ? "–" : fmt(e.h24, 1)} mm em 24 h${e.chValida ? "" : " *"}</div>`;
+      return `<div class="dc-card"><div class="dc-topo"><div><div class="dc-nome">${esc(e.cidade)}${e.rioNome ? " · " + esc(e.rioNome) : ""}</div><div class="dc-sub">${esc(e.nome)} (${esc(e.codigo)})${e.manut ? " · em manutenção" : ""}</div></div>${chip}</div>${nivel}${varia}${chuva}<svg class="chart" id="g-${esc(e.codigo)}" viewBox="0 0 360 140" role="img" aria-label="Nível e chuva nas últimas 48 horas"></svg></div>`;
+    }).join("");
+    dcEst.forEach((e) => dcGrafico(e));
+  }
+  function dcGrafico(e) {
+    const el = document.getElementById("g-" + e.codigo); if (!el) return;
+    const it = dcSerie[e.codigo];
+    if (!it) { el.innerHTML = `<text x="180" y="70" text-anchor="middle">Carregando a série…</text>`; return; }
+    if (!it.length) { el.innerHTML = `<text x="180" y="70" text-anchor="middle">Sem dados nas últimas 48 horas.</text>`; return; }
+    const L = 34, R = 318, T = 14, B = 112, n = it.length, X = (k) => L + (k + 0.5) / n * (R - L);
+    // chuva por hora (soma dos blocos de 10 min) e nivel
+    const ch = it.map((q) => +q.chuva_mm || 0), cmax = Math.max(2, ...ch);
+    const nv = it.map((q) => (q.rio_nivel == null ? null : +q.rio_nivel)), nvv = nv.filter((q) => q != null);
+    let s = `<text x="${L}" y="${T - 4}">chuva (mm em 10 min)</text>`;
+    s += ch.map((c, k) => c > 0 ? `<rect x="${(X(k) - (R - L) / n * 0.45).toFixed(1)}" y="${(B - c / cmax * (B - T) * 0.6).toFixed(1)}" width="${Math.max(1, (R - L) / n * 0.9).toFixed(1)}" height="${(c / cmax * (B - T) * 0.6).toFixed(1)}" style="fill:var(--drop)" fill-opacity="0.75"/>` : "").join("");
+    if (nvv.length) {
+      const a = Math.min(...nvv), b = Math.max(...nvv), pad = Math.max(0.05, (b - a) * 0.12), y0 = a - pad, y1 = b + pad, Y = (q) => B - (q - y0) / (y1 - y0) * (B - T);
+      for (const q of [y0 + pad, (y0 + y1) / 2, y1 - pad]) s += `<line x1="${L}" x2="${R}" y1="${Y(q).toFixed(1)}" y2="${Y(q).toFixed(1)}" style="stroke:var(--line)" stroke-width="0.6"/><text x="${R + 4}" y="${(Y(q) + 3).toFixed(1)}">${fmt(q, 2)}</text>`;
+      const d = nv.map((q, k) => (q == null ? "" : `${k && nv[k - 1] != null ? "L" : "M"}${X(k).toFixed(1)},${Y(q).toFixed(1)}`)).join("");
+      s += `<path d="${d}" fill="none" style="stroke:${e.cor}" stroke-width="2.2" stroke-linejoin="round"/>`;
+      const kl = nv.length - 1 - [...nv].reverse().findIndex((q) => q != null);
+      s += `<circle cx="${X(kl).toFixed(1)}" cy="${Y(nv[kl]).toFixed(1)}" r="3.5" style="fill:${e.cor};stroke:var(--panel)" stroke-width="1.5"/>`;
+      s += `<text x="${R}" y="${T - 4}" text-anchor="end">nível (m)</text>`;
+    } else s += `<text x="180" y="66" text-anchor="middle">Esta estação não mede o nível do rio.</text>`;
+    const tl = (q) => (q.ts || "").slice(8, 10) + "/" + (q.ts || "").slice(5, 7) + " " + (q.ts || "").slice(11, 16);
+    s += `<text x="${L}" y="${B + 14}">${tl(it[0])}</text><text x="${R}" y="${B + 14}" text-anchor="end">${tl(it[n - 1])}</text>`;
+    el.innerHTML = s;
+  }
+  $("dc-usar").addEventListener("click", () => {
+    const v = dcEst.filter((e) => e.h24 != null).map((e) => e.h24); if (!v.length) return;
+    const m = v.reduce((a, b) => a + b, 0) / v.length, val = Math.max(10, Math.min(150, Math.round(m / 5) * 5));
+    $("chuva").value = val; st.chuva = val; $("out-chuva").textContent = val + " mm"; recalc();
+    $("dc-nota").hidden = false; $("dc-nota").textContent = `Simulador com ${val} mm: média de ${fmt(m, 1)} mm nas estações nas últimas 24 h.`;
+  });
+
+  const novoTema = () => { lerPaleta(); if (meta) { desenharSvg(); desenharHidro(); legenda(); agendar(); } };
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", novoTema); } catch (e) {}
+  new MutationObserver(novoTema).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>
+
+</body>
+</html>

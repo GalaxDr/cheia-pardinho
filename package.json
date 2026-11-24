@@ -1,0 +1,10 @@
+{
+  "name": "cheia-pardinho",
+  "version": "1.0.0",
+  "description": "Simulador da dinâmica da água na sub-bacia Alto-Médio Pardinho (Programa MUDA / UNISC)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED",
+  "private": true
+}
