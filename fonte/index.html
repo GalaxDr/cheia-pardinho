@@ -676,10 +676,34 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   function sondar(ev) {
     if (!handA) return;
     const p = $("probe"), i = celula(ev);
+    const mk = marcadorPerto(ev);
+    if (mk) { p.innerHTML = mk; posicionarProbe(ev, p); return; }
     if (i < 0 || !dentro[i]) { p.hidden = true; return; }
     const akm = Math.pow(10, accl[i] / 40) * PX_KM2, hv = (st.ref === "rios" ? handR : handA)[i];
     const u = USO[uso[i]] ? USO[uso[i]].nome : "sem classe";
     p.innerHTML = `<div class="label">Ponto</div><div class="t">Escoam para cá: ${akm < 1 ? fmt(akm, 2) : fmt(akm, 0)} km²</div><div class="t">Até a foz: ${fmt(tt[i] / 10, 1)} h</div><div class="t">Altura acima do rio: ${hv >= 254 ? "> 25 m" : fmt(hv / 10, 1) + " m"}</div><div class="t">${u}${regiao[i] ? " · R" + String(regiao[i]).padStart(2, "0") : ""}</div>`;
+    posicionarProbe(ev, p);
+  }
+  // estação, pluviômetro ou ponto sob o mouse (até 12 px na tela)
+  function marcadorPerto(ev) {
+    const rc = cv.getBoundingClientRect(), k = rc.width / W;
+    const mx = (ev.clientX - rc.left) / k, my = (ev.clientY - rc.top) / k, lim = 12 / k;
+    let best = null, bd = lim * lim;
+    const ver = (x, y, f) => { const d = (x - mx) ** 2 + (y - my) ** 2; if (d <= bd) { bd = d; best = f; } };
+    const hora = (t) => t ? new Date(t).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : null;
+    const pp = meta.pontos || {};
+    if (st.trechos) (pp.trechos || []).forEach((q) => ver(q.xy[0], q.xy[1], () => `<div class="label">Trecho a revitalizar</div><div class="t">${esc(q.n)}</div>`));
+    if (st.coleta) (pp.coleta || []).forEach((q) => ver(q.xy[0], q.xy[1], () => `<div class="label">Ponto de coleta</div><div class="t">${esc(q.n)}</div>`));
+    if (st.pluv) pluvEst.forEach((q) => ver(q.x, q.y, () => `<div class="label">Pluviômetro ${q.fonte}</div><div><b>${esc(q.nome)}</b></div>`
+      + `<div class="t">Chuva em 24 h: ${q.h24 == null ? "sem dado" : fmt(q.h24, 1) + " mm"}${q.fonte === "CEMADEN" && q.horas != null && q.horas < 24 ? ` (${q.horas} de 24 h com dado)` : ""}</div>`
+      + (q.ts ? `<div class="t">Última leitura: ${hora(q.ts)}</div>` : "")));
+    if (st.dc) dcEst.forEach((e) => ver(e.x, e.y, () => `<div class="label">Estação da Defesa Civil RS</div><div><b>${esc(e.nome)}</b>${e.codigo ? " (" + esc(e.codigo) + ")" : ""}</div>`
+      + (e.rio ? `<div class="t">Nível: ${e.nivel == null ? "sem leitura" : fmt(e.nivel, 2) + " m"}${e.status != null && DC_TXT[e.status] ? " · " + DC_TXT[e.status] : ""}</div>` : "")
+      + (e.h24 != null ? `<div class="t">Chuva em 24 h: ${fmt(e.h24, 1)} mm</div>` : "")
+      + (e.ts ? `<div class="t">Leitura: ${esc(String(e.ts).slice(8, 10) + "/" + String(e.ts).slice(5, 7) + " " + String(e.ts).slice(11, 16))}</div>` : "")));
+    return best ? best() : null;
+  }
+  function posicionarProbe(ev, p) {
     p.hidden = false;
     const sr = stage.getBoundingClientRect(), mx = ev.clientX - sr.left, my = ev.clientY - sr.top, pw = p.offsetWidth, ph = p.offsetHeight, g = 16;
     let lx = mx + g, ty = my + g; if (lx + pw > sr.width) lx = mx - g - pw; if (ty + ph > sr.height) ty = my - g - ph;
