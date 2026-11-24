@@ -23,7 +23,7 @@ O servidor repassa só as duas consultas do guia da Defesa Civil (Tags_data e Hi
 - `server.js`, `Dockerfile`, `package.json`: servidor Node sem dependências (serve `public/` e faz o repasse para a API da Defesa Civil RS).
 - `public/`: o site pronto (index.html, dados em PNG, meta.json, ícones).
 - `fonte/index.html`: fonte da página antes do empacotamento.
-- `scripts/`: pipeline em Python que gera os dados a partir do MDE (ordem: hand → web → fluxo → solos_pontos → geo) e os empacotadores (`easypanel.py` gera `public/`, `bundle.py` gera um HTML único).
+- `scripts/`: pipeline em Python que gera os dados a partir do MDE (ordem: hand → web → fluxo → solos_pontos → geo; depois hand_ref → dados_hand corrigem a cota do rio no HAND) e os empacotadores (`easypanel.py` gera `public/`, `bundle.py` gera um HTML único).
 
 ## Nível ao vivo
 

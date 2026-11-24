@@ -235,7 +235,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
         <button id="ref-arroios" aria-pressed="false">Todos os arroios<small>área drenada ≥ 1 km²</small></button>
       </div>
       <div class="kpis">
-        <div class="kpi"><b id="k-area">0,0</b><span>km² alagados</span></div>
+        <div class="kpi"><b id="k-area">0,0</b><span>km² alagados fora do leito</span></div>
         <div class="kpi"><b id="k-perc">0,0%</b><span>da sub-bacia</span></div>
       </div>
     </section>
@@ -263,7 +263,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <p>O tempo até a foz usa velocidades típicas: <b>0,3 m/s</b> escorrendo pela encosta, <b>1,0 m/s</b> nos arroios e <b>1,5 m/s</b> nos rios principais. A vazão é calculada pelo método tempo-área, sem o amortecimento da cheia ao longo do rio.</p>
       <p>Quanto da chuva vira enxurrada sai do método <b>SCS Curva-Número</b>: cada ponto recebe um número conforme o uso do solo (MapBiomas 2025) e o grupo hidrológico do solo (mapa de solos 1:250.000, classificado conforme Sartori, Lombardi Neto e Genovez, 2005). Floresta em solo profundo retém muito; lavoura em Neossolo raso escoa muito. O mapa de solos é grosseiro para uma propriedade; ensaios de infiltração em campo melhoram bastante a estimativa local.</p>
       <p>Os números servem para <b>comparar lugares e cenários</b> e entender a dinâmica. Para valores absolutos de vazão é preciso calibrar com medições de chuva e vazão.</p>
-      <p>O nível de cheia marca como alagado todo ponto cuja altura acima do rio mais próximo é menor que o nível escolhido. O terreno tem precisão vertical de alguns metros, então os primeiros 1 a 2 m mostram as partes mais baixas da várzea.</p>
+      <p>O nível de cheia marca como alagado todo ponto cuja altura acima do rio mais próximo é menor que o nível escolhido. A altura do rio é a do ponto mais baixo do terreno a até 90 m do canal, porque o modelo de terreno mede o topo da mata ciliar e deixaria o rio mais alto que a várzea. A área alagada não conta o próprio leito do rio. O terreno tem precisão vertical de alguns metros, então os primeiros 1 a 2 m mostram as partes mais baixas da várzea.</p>
     </section>
   </div>
 
@@ -381,7 +381,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       if (banda && tt[i] <= t10 && tt[i] > t10 - 10) c = mix(c, bc, 0.75);
       const hv = H_[i];
       const hl = nV ? nivelPx(i) : h10;
-      if (hl > 0 && hv < 254 && hv <= hl) { const f = Math.min((hl - hv) / 50, 1); c = mix(c, [lo[0] + (hi[0] - lo[0]) * f, lo[1] + (hi[1] - lo[1]) * f, lo[2] + (hi[2] - lo[2]) * f], 0.88); nAlag++; }
+      if (hl > 0 && hv < 254 && hv <= hl) { const f = Math.min((hl - hv) / 50, 1); c = mix(c, [lo[0] + (hi[0] - lo[0]) * f, lo[1] + (hi[1] - lo[1]) * f, lo[2] + (hi[2] - lo[2]) * f], 0.88); if (!(st.ref === "rios" ? canal[i] === 2 : canal[i])) nAlag++; }
       if (st.rios && canal[i] && (canal[i] === 2 || accl[i] >= LOG_ARROIO + 20)) c = mix(c, rv, canal[i] === 2 ? 0.9 : 0.6);
       px[j] = c[0]; px[j + 1] = c[1]; px[j + 2] = c[2]; px[j + 3] = 255;
     }
