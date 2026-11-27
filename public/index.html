@@ -260,7 +260,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     <section class="box note" aria-labelledby="h-como">
       <div class="label" id="h-como">Como funciona</div>
       <p>O caminho da água vem do <b>modelo de terreno de 30 m</b>: cada ponto escoa para o vizinho mais baixo, e somando esses caminhos aparecem os arroios e rios. É o mesmo cálculo usado em QGIS para delimitar bacias.</p>
-      <p>O tempo até a foz usa velocidades típicas: <b>0,3 m/s</b> escorrendo pela encosta, <b>1,0 m/s</b> nos arroios e <b>1,5 m/s</b> nos rios principais. A vazão é calculada pelo método tempo-área, sem o amortecimento da cheia ao longo do rio.</p>
+      <p>O tempo até a foz usa velocidades típicas: <b>0,3 m/s</b> escorrendo pela encosta, <b>1,0 m/s</b> nos arroios e <b>1,5 m/s</b> nos rios principais. A vazão é calculada pelo método tempo-área, sem o amortecimento da cheia ao longo do rio. Numa faixa estreita das bordas, menos de 1% da área (em cinza na camada Tempo até a foz) escoa, pelo modelo de terreno, para fora do contorno oficial da bacia e não entra no cálculo da foz.</p>
       <p>Quanto da chuva vira enxurrada sai do método <b>SCS Curva-Número</b>: cada ponto recebe um número conforme o uso do solo (MapBiomas 2025) e o grupo hidrológico do solo (mapa de solos 1:250.000, classificado conforme Sartori, Lombardi Neto e Genovez, 2005). Floresta em solo profundo retém muito; lavoura em Neossolo raso escoa muito. O mapa de solos é grosseiro para uma propriedade; ensaios de infiltração em campo melhoram bastante a estimativa local.</p>
       <p>Os números servem para <b>comparar lugares e cenários</b> e entender a dinâmica. Para valores absolutos de vazão é preciso calibrar com medições de chuva e vazão.</p>
       <p>O nível de cheia marca como alagado todo ponto cuja altura acima do rio mais próximo é menor que o nível escolhido. A altura do rio é a do ponto mais baixo do terreno a até 90 m do canal, porque o modelo de terreno mede o topo da mata ciliar e deixaria o rio mais alto que a várzea. A área alagada não conta o próprio leito do rio. O terreno tem precisão vertical de alguns metros, então os primeiros 1 a 2 m mostram as partes mais baixas da várzea.</p>
@@ -321,7 +321,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     return new Promise((ok, erro) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0); ok(x.getImageData(0, 0, im.width, im.height).data); }; im.onerror = erro; im.src = src; });
   }
 
-  Promise.all([carregar("dados.png?v=a708c5e72c"), carregar("base.png?v=1ba96aa9d7"), carregar("fluxo.png?v=9b2d0b3344"), carregar("solo.png?v=1a3ed8eed0"), fetch("meta.json?v=f7c0bc054a").then((r) => r.json())]).then(([d, b, f, so, m]) => {
+  Promise.all([carregar("dados.png?v=a708c5e72c"), carregar("base.png?v=1ba96aa9d7"), carregar("fluxo.png?v=60249eba4d"), carregar("solo.png?v=1a3ed8eed0"), fetch("meta.json?v=dc3eba142c").then((r) => r.json())]).then(([d, b, f, so, m]) => {
     meta = m;
     handA = new Uint8Array(N); handR = new Uint8Array(N); uso = new Uint8Array(N); canal = new Uint8Array(N); hsg = new Uint8Array(N); app = new Uint8Array(N);
     sombra = new Uint8Array(N); regiao = new Uint8Array(N); dentro = new Uint8Array(N); dir = new Uint8Array(N); accl = new Uint8Array(N); tt = new Uint8Array(N);
@@ -376,7 +376,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       let c = [sl[0] + (sh[0] - sl[0]) * t, sl[1] + (sh[1] - sl[1]) * t, sl[2] + (sh[2] - sl[2]) * t];
       if (st.uso && uso[i]) c = mix(c, pal.uso[uso[i]].map((v) => v * (0.55 + 0.45 * t)), 0.55);
       if (st.esc && qmm) { const f = Math.min(qmm[i] / st.chuva, 1); const dp = pal["--drop"]; c = mix(c, dp.map((v) => v * (0.55 + 0.45 * t)), 0.1 + 0.8 * f); }
-      if (st.iso) { const f = Math.min(tt[i] / tmax, 1); c = mix(c, [i0[0] + (i1[0] - i0[0]) * f, i0[1] + (i1[1] - i0[1]) * f, i0[2] + (i1[2] - i0[2]) * f].map((v) => v * (0.6 + 0.4 * t)), 0.6); }
+      if (st.iso && tt[i] >= 253) c = mix(c, [128, 128, 128], 0.55);
+      else if (st.iso) { const f = Math.min(tt[i] / tmax, 1); c = mix(c, [i0[0] + (i1[0] - i0[0]) * f, i0[1] + (i1[1] - i0[1]) * f, i0[2] + (i1[2] - i0[2]) * f].map((v) => v * (0.6 + 0.4 * t)), 0.6); }
       if (st.sel && st.sel[i]) c = mix(c, sc, 0.42);
       if (banda && tt[i] <= t10 && tt[i] > t10 - 10) c = mix(c, bc, 0.75);
       const hv = H_[i];
@@ -430,7 +431,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     if (st.sel) h += `<span><span class="sw" style="background:var(--sel)"></span>área que escoa para o ponto</span>`;
     if (st.banda && st.t > 0) h += `<span><span class="sw" style="background:var(--band)"></span>de onde vem a água que passa na foz agora</span>`;
     if (pulso) h += `<span>gotas: chuva de 1 h descendo até a foz</span>`;
-    if (st.iso) h += `<span>tempo até a foz: 0 h <span class="ramp sw" style="width:70px;background:linear-gradient(90deg,var(--iso-near),var(--iso-far))"></span> ${fmt(meta.fluxo.t_max_h, 0)} h</span>`;
+    if (st.iso) h += `<span>tempo até a foz: 0 h <span class="ramp sw" style="width:70px;background:linear-gradient(90deg,var(--iso-near),var(--iso-far))"></span> ${fmt(meta.fluxo.t_max_h, 0)} h</span><span><span class="sw" style="background:#808080"></span>escoa para fora da bacia</span>`;
     if (st.esc) h += `<span>enxurrada: pouca <span class="ramp sw" style="width:60px;background:linear-gradient(90deg,var(--shade-lo),var(--drop))"></span> toda a chuva</span>`;
     if (st.dc && dcEst.length) h += `<span><span class="sw" style="background:#69a82f;border-radius:50%"></span><span class="sw" style="background:#faba00;border-radius:50%"></span><span class="sw" style="background:#e67819;border-radius:50%"></span><span class="sw" style="background:#e20228;border-radius:50%"></span>rio: normal → inundação</span><span><span class="sw" style="background:var(--drop);border-radius:50%"></span>pluviômetro (chuva 24 h)</span>`;
     if (st.pluv && pluvEst.length) h += `<span><span class="sw" style="background:var(--pluv-u)"></span>UNISC</span><span><span class="sw" style="background:var(--pluv-c);clip-path:polygon(50% 0,100% 100%,0 100%)"></span>CEMADEN (chuva em 24 h)</span>`;
@@ -553,7 +554,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const area = n * PX_KM2;
     $("s-area").textContent = area < 10 ? fmt(area, 2) : fmt(area, 0);
     $("s-dist").textContent = fmt(dist / 1000, 1);
-    $("s-tempo").textContent = fmt(tt[i] / 10, 1);
+    $("s-tempo").textContent = tt[i] >= 253 ? "–" : fmt(tt[i] / 10, 1);
     $("s-perc").textContent = fmt(area / meta.area_bacia_km2 * 100, area / meta.area_bacia_km2 < 0.01 ? 2 : 1) + "%";
     const tot = Math.max(1, n);
     $("s-uso").innerHTML = USO.map((u, k) => ({ u, k, v: porUso[k] })).filter((o) => o.u && o.v / tot >= 0.01).sort((a, b) => b.v - a.v).slice(0, 5)
@@ -597,7 +598,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     for (let k = 0; k < validos.length; k++) {
       const i = validos[k], u = uso[i] || 3, h = hsg[i] || 3, qb = Lb[u * 5 + h];
       const ua = st.appOn && app[i] && u !== 7 && u !== 8 ? 1 : u, q = temCen ? Lc[ua * 5 + h] : qb;
-      qmm[i] = q; volH[tt[i]] += q * 0.9; volBase[tt[i]] += qb * 0.9; soma += q;
+      qmm[i] = q; if (tt[i] < 253) { volH[tt[i]] += q * 0.9; volBase[tt[i]] += qb * 0.9; } soma += q;
     }
     $("k-esc").textContent = fmt(soma / validos.length / Pm * 100, 0) + "%";
     $("k-vol").textContent = fmt(soma * 0.9 / 1e6, 1);
@@ -693,7 +694,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     if (i < 0 || !dentro[i]) { p.hidden = true; return; }
     const akm = Math.pow(10, accl[i] / 40) * PX_KM2, hv = (st.ref === "rios" ? handR : handA)[i];
     const u = USO[uso[i]] ? USO[uso[i]].nome : "sem classe";
-    p.innerHTML = `<div class="label">Ponto</div><div class="t">Escoam para cá: ${akm < 1 ? fmt(akm, 2) : fmt(akm, 0)} km²</div><div class="t">Até a foz: ${fmt(tt[i] / 10, 1)} h</div><div class="t">Altura acima do rio: ${hv >= 254 ? "> 25 m" : fmt(hv / 10, 1) + " m"}</div><div class="t">${u}${regiao[i] ? " · R" + String(regiao[i]).padStart(2, "0") : ""}</div>`;
+    p.innerHTML = `<div class="label">Ponto</div><div class="t">Escoam para cá: ${akm < 1 ? fmt(akm, 2) : fmt(akm, 0)} km²</div><div class="t">${tt[i] >= 253 ? "Pelo terreno, escoa para fora da bacia" : "Até a foz: " + fmt(tt[i] / 10, 1) + " h"}</div><div class="t">Altura acima do rio: ${hv >= 254 ? "> 25 m" : fmt(hv / 10, 1) + " m"}</div><div class="t">${u}${regiao[i] ? " · R" + String(regiao[i]).padStart(2, "0") : ""}</div>`;
     posicionarProbe(ev, p);
   }
   // estação, pluviômetro ou ponto sob o mouse (até 12 px na tela)
@@ -929,7 +930,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     let best = -1, bd = 1e9;
     for (let dr = -15; dr <= 15; dr++) for (let dc = -15; dc <= 15; dc++) {
       const r = r0 + dr, c = c0 + dc; if (r < 0 || r >= H || c < 0 || c >= W) continue;
-      const k = r * W + c; if (!dentro[k]) continue;
+      const k = r * W + c; if (!dentro[k] || tt[k] >= 253) continue;
       const dd = dr * dr + dc * dc - accl[k] * 0.02; if (dd < bd) { bd = dd; best = k; }   // prefere o canal
     }
     return best >= 0 ? tt[best] : null;
